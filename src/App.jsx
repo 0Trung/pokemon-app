@@ -179,38 +179,115 @@ const MovesTable = ({ moves }) => {
       
       <div className="overflow-x-auto max-h-60 overflow-y-auto custom-scrollbar">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-800 text-gray-400 text-xs sticky top-0">
-            <tr>
-              <th className="p-2">Lv</th>
-              <th className="p-2">Move</th>
-              <th className="p-2">Type</th>
-              <th className="p-2">Pow</th>
-              <th className="p-2">Acc</th>
-              <th className="p-2">PP</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm">
-            {filteredMoves.map(m => {
-              const detail = moveDetails[m.move.name];
-              const level = m.version_group_details[m.version_group_details.length - 1].level_learned_at;
-              return (
-                <tr key={m.move.name} className="border-b border-gray-700 hover:bg-gray-700/50">
-                  <td className="p-2 font-mono text-gray-500">{level === 0 ? '-' : level}</td>
-                  <td className="p-2 font-bold capitalize">{m.move.name.replace('-', ' ')}</td>
-                  <td className="p-2">
-                    {detail ? <TypeBadge type={detail.type} small /> : <span className="animate-pulse">...</span>}
-                  </td>
-                  <td className="p-2 text-gray-300">{detail ? (detail.power || '-') : '...'}</td>
-                  <td className="p-2 text-gray-300">{detail ? (detail.accuracy || '-') : '...'}</td>
-                  <td className="p-2 text-gray-300">{detail ? detail.pp : '...'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {loadingMoves && <div className="text-center text-xs text-gray-500 py-2">Loading move details...</div>}
-      </div>
-    </div>
+          <thead className="bg-gray-800 text-gray-400 text-xs uppercase sticky top-0 z-10 shadow-md">
+                    <tr>
+                      {[
+                        { key: 'id', label: 'ID' },
+                        { key: null, label: 'Icon' }, // Cột này không sort
+                        { key: 'name', label: 'Name' },
+                        { key: null, label: 'Types' },
+                        { key: null, label: 'Abilities', className: 'hidden sm:table-cell' },
+                        { key: 'bst', label: 'BST', color: 'text-yellow-500' },
+                        { key: 'hp', label: 'HP' },
+                        { key: 'attack', label: 'Atk' },
+                        { key: 'defense', label: 'Def' },
+                        { key: 'special-attack', label: 'SpA' },
+                        { key: 'special-defense', label: 'SpD' },
+                        { key: 'speed', label: 'Spe' },
+                      ].map((col, index) => (
+                        <th 
+                          key={index}
+                          className={`p-3 ${col.key ? 'cursor-pointer hover:bg-gray-700 select-none' : ''} ${col.color || ''} ${col.className || ''}`}
+                          onClick={() => col.key && handleSort(col.key)}
+                        >
+                          <div className="flex items-center gap-1">
+                            {col.label}
+                            {/* Logic hiển thị mũi tên */}
+                            {col.key && sortConfig.key === col.key && (
+                              sortConfig.direction === 'asc' 
+                                ? <ArrowUp size={14} className="text-blue-400" />   // Min -> Max
+                                : <ArrowDown size={14} className="text-red-400" />  // Max -> Min
+                            )}
+                            {/* Hiển thị mờ nếu chưa sort cột này */}
+                            {col.key && sortConfig.key !== col.key && (
+                              <ArrowUpDown size={12} className="opacity-20" />
+                            )}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+          <tbody className="text-sm divide-y divide-gray-800">
+                    {sortedList.map((pokemon) => {
+                       const totalStats = pokemon.stats.reduce((acc, curr) => acc + curr.base_stat, 0);
+                       
+                       // Tách Abilities: Thường & Ẩn
+                       const normalAbilities = pokemon.abilities.filter(a => !a.is_hidden);
+                       const hiddenAbilities = pokemon.abilities.filter(a => a.is_hidden);
+
+                       return (
+                        <tr 
+                          key={pokemon.id} 
+                          onClick={() => setSelectedPokemon(pokemon)}
+                          className="hover:bg-gray-800/80 transition-colors cursor-pointer"
+                        >
+                          <td className="p-3 font-mono text-gray-500">#{String(pokemon.id).padStart(3, '0')}</td>
+                          <td className="p-3">
+                            <img 
+                              src={pokemon.sprites.front_default} 
+                              alt={pokemon.name} 
+                              className="w-10 h-10 object-contain pixelated"
+                              loading="lazy"
+                            />
+                          </td>
+                          <td className="p-3 font-bold capitalize text-white">{pokemon.name.replace('-', ' ')}</td>
+                          <td className="p-3">
+                            <div className="flex flex-col gap-1">
+                              {pokemon.types.map(t => <TypeBadge key={t.type.name} type={t.type.name} small />)}
+                            </div>
+                          </td>
+                          
+                          {/* XỬ LÝ HIỂN THỊ ABILITIES */}
+                          <td className="p-3 hidden sm:table-cell align-middle">
+                             <div className="flex flex-col gap-1">
+                                {/* 1. Abilities Chính (In đậm) */}
+                                {normalAbilities.map((a) => (
+                                  <span key={a.ability.name} className="capitalize font-bold text-gray-200">
+                                    {a.ability.name.replace('-', ' ')}
+                                  </span>
+                                ))}
+                                
+                                {/* 2. Abilities Ẩn (Chữ thường, cùng cỡ chữ) */}
+                                {hiddenAbilities.map((a) => (
+                                  <span key={a.ability.name} className="capitalize font-normal text-gray-400">
+                                    {a.ability.name.replace('-', ' ')}
+                                  </span>
+                                ))}
+                             </div>
+                          </td>
+
+                          <td className="p-3 font-bold text-yellow-500">{totalStats}</td>
+                          {/* Các cột chỉ số Stat */}
+                          {['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'].map(statName => {
+                             const val = pokemon.stats.find(s => s.stat.name === statName)?.base_stat || 0;
+                             // Tô màu nhạt cho chỉ số cao
+                             const colorClass = val >= 100 ? 'text-green-400 font-bold' : val >= 60 ? 'text-gray-300' : 'text-gray-500';
+                             return <td key={statName} className={`p-3 text-right ${colorClass}`}>{val}</td>
+                          })}
+                        </tr>
+                       );
+                    })}
+                    
+                    {/* Skeleton Loading khi scroll xuống cuối */}
+                    {loading && (
+                      <tr className="animate-pulse">
+                         <td colSpan="12" className="p-4 text-center text-gray-500">Loading more Pokémon...</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+             </div>
+           </div>
   );
 };
 
