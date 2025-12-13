@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, Zap, Shield, Sword, Activity, ChevronRight, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw } from 'lucide-react';
+import { Search, X, Zap, Shield, Sword, Activity, ChevronRight, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
 
 // ==========================================
 // PHẦN 1: CẤU HÌNH & DỮ LIỆU CỐ ĐỊNH
