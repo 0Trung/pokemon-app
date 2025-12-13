@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, Zap, Shield, Sword, Activity, ChevronRight, BarChart2, ArrowUpDown, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, X, Zap, Shield, Sword, Activity, ChevronRight, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw } from 'lucide-react';
 
 // ==========================================
 // PHẦN 1: CẤU HÌNH & DỮ LIỆU CỐ ĐỊNH
@@ -95,7 +95,7 @@ const StatBar = ({ label, value, max = 255 }) => {
     <div className="flex items-center gap-2 mb-1 text-xs">
       <span className="w-10 font-bold text-gray-400 uppercase">{label}</span>
       <span className="w-8 text-right font-bold text-gray-200">{value}</span>
-      <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-gray-700 rounded-sm overflow-hidden border border-gray-600">
         <div className={`h-full ${barColor}`} style={{ width: `${percentage}%` }} />
       </div>
     </div>
@@ -164,23 +164,23 @@ const MovesTable = ({ moves }) => {
           <button 
             key={f} 
             onClick={() => setActiveFilter(f)}
-            className={`px-4 py-2 text-sm font-bold capitalize ${activeFilter === f ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+            className={`px-4 py-2 text-sm font-bold capitalize transition-colors ${activeFilter === f ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
           >
             {f === 'machine' ? 'TM/HM' : f.replace('-', ' ')}
           </button>
         ))}
       </div>
       
-      <div className="overflow-x-auto max-h-60 overflow-y-auto custom-scrollbar">
+      <div className="overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-800 text-gray-400 text-xs sticky top-0">
+          <thead className="bg-gray-800 text-gray-400 text-xs sticky top-0 shadow-sm">
             <tr>
-              <th className="p-2">Lv</th>
-              <th className="p-2">Move</th>
-              <th className="p-2">Type</th>
-              <th className="p-2">Pow</th>
-              <th className="p-2">Acc</th>
-              <th className="p-2">PP</th>
+              <th className="p-3">Lv</th>
+              <th className="p-3">Move</th>
+              <th className="p-3">Type</th>
+              <th className="p-3">Pow</th>
+              <th className="p-3">Acc</th>
+              <th className="p-3">PP</th>
             </tr>
           </thead>
           <tbody className="text-sm">
@@ -188,21 +188,21 @@ const MovesTable = ({ moves }) => {
               const detail = moveDetails[m.move.name];
               const level = m.version_group_details[m.version_group_details.length - 1].level_learned_at;
               return (
-                <tr key={m.move.name} className="border-b border-gray-700 hover:bg-gray-700/50">
-                  <td className="p-2 font-mono text-gray-500">{level === 0 ? '-' : level}</td>
-                  <td className="p-2 font-bold capitalize">{m.move.name.replace('-', ' ')}</td>
-                  <td className="p-2">
+                <tr key={m.move.name} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
+                  <td className="p-3 font-mono text-gray-500 font-bold">{level === 0 ? '-' : level}</td>
+                  <td className="p-3 font-bold capitalize">{m.move.name.replace('-', ' ')}</td>
+                  <td className="p-3">
                     {detail ? <TypeBadge type={detail.type} small /> : <span className="animate-pulse">...</span>}
                   </td>
-                  <td className="p-2 text-gray-300">{detail ? (detail.power || '-') : '...'}</td>
-                  <td className="p-2 text-gray-300">{detail ? (detail.accuracy || '-') : '...'}</td>
-                  <td className="p-2 text-gray-300">{detail ? detail.pp : '...'}</td>
+                  <td className={`p-3 font-mono ${detail?.power ? 'text-white' : 'text-gray-600'}`}>{detail ? (detail.power || '-') : '...'}</td>
+                  <td className="p-3 text-gray-400">{detail ? (detail.accuracy || '-') : '...'}</td>
+                  <td className="p-3 text-gray-400">{detail ? detail.pp : '...'}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {loadingMoves && <div className="text-center text-xs text-gray-500 py-2">Loading move details...</div>}
+        {loadingMoves && <div className="text-center text-xs text-gray-500 py-2 flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={12}/> Loading moves...</div>}
       </div>
     </div>
   );
@@ -246,11 +246,11 @@ const TypeEffectivenessBox = ({ types, abilities }) => {
     else if (grouped[mult] === undefined) {}
   });
 
-  const renderGroup = (mult, label, colorClass) => {
+  const renderGroup = (mult, label, colorClass, bgClass) => {
     if (grouped[mult].length === 0) return null;
     return (
-      <div className="mb-2">
-        <div className={`text-xs font-bold ${colorClass} mb-1`}>{label}</div>
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-12 text-center text-xs font-bold ${colorClass} ${bgClass} rounded py-1 shrink-0`}>{mult}x</div>
         <div className="flex flex-wrap gap-1">
           {grouped[mult].map(t => <TypeBadge key={t} type={t} small />)}
         </div>
@@ -259,27 +259,31 @@ const TypeEffectivenessBox = ({ types, abilities }) => {
   };
 
   return (
-    <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700 mt-4">
-      <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2">
-        <Shield size={14} className="text-blue-400" /> Type Defenses (with Ability)
-      </h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          {renderGroup(4, 'Takes 4x', 'text-red-500')}
-          {renderGroup(2, 'Takes 2x', 'text-orange-400')}
-        </div>
-        <div>
-          {renderGroup(0.5, 'Takes 0.5x', 'text-green-400')}
-          {renderGroup(0.25, 'Takes 0.25x', 'text-green-600')}
-          {renderGroup(0, 'Immune (0x)', 'text-gray-400')}
-        </div>
+    <div className="animate-fadeIn">
+      {/* 4x & 2x */}
+      <div className="space-y-1 mb-3">
+        {renderGroup(4, '4x', 'text-white', 'bg-red-600')}
+        {renderGroup(2, '2x', 'text-white', 'bg-red-500')}
       </div>
+      
+      {/* 1x (Ẩn cho gọn) */}
+      
+      {/* Resistance */}
+      <div className="space-y-1">
+        {renderGroup(0.5, '0.5x', 'text-white', 'bg-green-600')}
+        {renderGroup(0.25, '0.25x', 'text-white', 'bg-green-700')}
+        {renderGroup(0, '0x', 'text-gray-300', 'bg-gray-700')}
+      </div>
+      
+      {Object.values(grouped).flat().length === 0 && <div className="text-gray-500 text-sm italic">No special effectiveness data.</div>}
     </div>
   );
 };
 
 // Modal Chi Tiết
 const PokemonDetailModal = ({ pokemon, onClose }) => {
+  const [viewMode, setViewMode] = useState('stats'); // 'stats' | 'defenses'
+
   if (!pokemon) return null;
   const artwork = pokemon.sprites.other['official-artwork'].front_default || pokemon.sprites.front_default;
   const getStat = (name) => pokemon.stats.find(s => s.stat.name === name)?.base_stat || 0;
@@ -288,6 +292,7 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-sm animate-fadeIn">
       <div className="bg-gray-800 w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden border border-gray-700 max-h-[95vh] flex flex-col">
+        {/* Header */}
         <div className="bg-gray-900 p-3 flex justify-between items-center border-b border-gray-700 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-gray-500 font-mono font-bold text-lg">#{String(pokemon.id).padStart(3, '0')}</span>
@@ -295,56 +300,91 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700"><X size={24} /></button>
         </div>
+
         <div className="overflow-y-auto p-4 sm:p-6 custom-scrollbar flex-1">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div className="md:col-span-4 flex flex-col items-center">
-              <div className="relative w-48 h-48 mb-4">
-                 <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-full blur-2xl"></div>
-                 <img src={artwork} alt={pokemon.name} className="relative w-full h-full object-contain drop-shadow-xl" />
+          <div className="flex flex-col gap-6">
+            
+            {/* Top Section: Info & Toggleable Stats Box */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Image, Info, Abilities */}
+              <div className="flex flex-col items-center">
+                <div className="relative w-48 h-48 mb-4">
+                   <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-full blur-2xl"></div>
+                   <img src={artwork} alt={pokemon.name} className="relative w-full h-full object-contain drop-shadow-xl" />
+                </div>
+                <div className="flex gap-2 mb-4">
+                  {pokemon.types.map(t => <TypeBadge key={t.type.name} type={t.type.name} />)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 w-full mb-4">
+                   <div className="bg-gray-700/30 rounded p-2 text-center border border-gray-700">
+                      <div className="text-gray-400 text-[10px] uppercase font-bold">Height</div>
+                      <div className="font-bold text-sm text-white">{pokemon.height/10}m</div>
+                   </div>
+                   <div className="bg-gray-700/30 rounded p-2 text-center border border-gray-700">
+                      <div className="text-gray-400 text-[10px] uppercase font-bold">Weight</div>
+                      <div className="font-bold text-sm text-white">{pokemon.weight/10}kg</div>
+                   </div>
+                </div>
+
+                <div className="w-full">
+                  <h4 className="text-gray-400 text-xs uppercase font-bold mb-2 flex items-center gap-1"><Zap size={12}/> Abilities</h4>
+                  <div className="flex flex-col gap-2">
+                    {pokemon.abilities.map(a => (
+                      <div key={a.ability.name} className={`px-3 py-2 rounded border ${a.is_hidden ? 'border-yellow-600/50 bg-yellow-900/10 text-yellow-100' : 'border-gray-600 bg-gray-700/50 text-gray-200'} text-xs font-bold capitalize flex justify-between items-center shadow-sm`}>
+                        <span>{a.ability.name.replace('-', ' ')}</span>
+                        {a.is_hidden && <span className="text-[10px] bg-yellow-600/20 text-yellow-200 px-1.5 py-0.5 rounded border border-yellow-600/50">Hidden</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2 mb-4">
-                {pokemon.types.map(t => <TypeBadge key={t.type.name} type={t.type.name} />)}
-              </div>
-              <div className="w-full bg-gray-700/30 rounded p-3 mb-4">
-                <div className="flex justify-between mb-1"><span className="text-gray-400 text-xs">Height</span> <span className="font-bold">{pokemon.height/10}m</span></div>
-                <div className="flex justify-between"><span className="text-gray-400 text-xs">Weight</span> <span className="font-bold">{pokemon.weight/10}kg</span></div>
-              </div>
-              <div className="w-full">
-                <h4 className="text-gray-400 text-xs uppercase font-bold mb-2">Abilities</h4>
-                <div className="flex flex-col gap-2">
-                  {pokemon.abilities.map(a => (
-                    <div key={a.ability.name} className={`px-3 py-1.5 rounded border ${a.is_hidden ? 'border-yellow-600 bg-yellow-900/20 text-yellow-200' : 'border-gray-600 bg-gray-700 text-gray-200'} text-xs font-bold capitalize flex justify-between`}>
-                      <span>{a.ability.name.replace('-', ' ')}</span>
-                      {a.is_hidden && <span className="text-[10px] opacity-70">Hidden</span>}
+
+              {/* Right Column: Toggleable Stats / Defenses Box */}
+              <div 
+                className="bg-gray-900/50 border border-gray-700 rounded-xl p-5 cursor-pointer hover:bg-gray-900 transition-all shadow-inner relative group h-fit"
+                onClick={() => setViewMode(prev => prev === 'stats' ? 'defenses' : 'stats')}
+              >
+                {/* Header with Switch Icon */}
+                <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                    {viewMode === 'stats' ? <><BarChart2 size={20} className="text-blue-400" /> Base Stats</> : <><Shield size={20} className="text-green-400" /> Type Defenses</>}
+                  </h3>
+                  <div className="text-xs text-gray-500 group-hover:text-white transition-colors flex items-center gap-1 bg-gray-800 px-2 py-1 rounded-full">
+                    <RefreshCw size={12} /> Click to switch
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="min-h-[220px]">
+                  {viewMode === 'stats' ? (
+                    <div className="animate-fadeIn space-y-3">
+                      <StatBar label="HP" value={getStat('hp')} />
+                      <StatBar label="Atk" value={getStat('attack')} />
+                      <StatBar label="Def" value={getStat('defense')} />
+                      <StatBar label="SpA" value={getStat('special-attack')} />
+                      <StatBar label="SpD" value={getStat('special-defense')} />
+                      <StatBar label="Spe" value={getStat('speed')} />
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-700 mt-2">
+                         <span className="font-bold text-gray-400 text-sm">TOTAL</span>
+                         <span className="font-bold text-2xl text-blue-300">{totalStats}</span>
+                      </div>
                     </div>
-                  ))}
+                  ) : (
+                    <TypeEffectivenessBox types={pokemon.types} abilities={pokemon.abilities} />
+                  )}
                 </div>
               </div>
             </div>
-            <div className="md:col-span-4">
-              <h3 className="text-white font-bold text-lg mb-3 flex items-center gap-2 border-b border-gray-700 pb-1">
-                <BarChart2 size={18} className="text-blue-400" /> Base Stats
-              </h3>
-              <div className="space-y-2 mb-4">
-                <StatBar label="HP" value={getStat('hp')} />
-                <StatBar label="Atk" value={getStat('attack')} />
-                <StatBar label="Def" value={getStat('defense')} />
-                <StatBar label="SpA" value={getStat('special-attack')} />
-                <StatBar label="SpD" value={getStat('special-defense')} />
-                <StatBar label="Spe" value={getStat('speed')} />
-                <div className="flex justify-between items-center pt-2 border-t border-gray-700 mt-2">
-                   <span className="font-bold text-gray-400">TOTAL</span>
-                   <span className="font-bold text-xl text-blue-300">{totalStats}</span>
-                </div>
-              </div>
-              <TypeEffectivenessBox types={pokemon.types} abilities={pokemon.abilities} />
-            </div>
-            <div className="md:col-span-4">
-              <h3 className="text-white font-bold text-lg mb-3 flex items-center gap-2 border-b border-gray-700 pb-1">
-                <Sword size={18} className="text-red-400" /> Move Pool
+
+            {/* Bottom Section: Moves */}
+            <div>
+              <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-700 pb-2">
+                <Sword size={20} className="text-red-400" /> Move Pool
               </h3>
               <MovesTable moves={pokemon.moves} />
             </div>
+
           </div>
         </div>
       </div>
@@ -364,40 +404,35 @@ export default function App() {
   const [offensiveTypes, setOffensiveTypes] = useState([]);
   const [hoverInfo, setHoverInfo] = useState(null);
 
-  // --- States Pokedex (NEW LOGIC) ---
-  const [fullPokemonData, setFullPokemonData] = useState([]); // Chứa FULL 1025 Pokemon chi tiết
-  const [loadingProgress, setLoadingProgress] = useState(0); // Tiến độ tải (%)
+  // --- States Pokedex ---
+  const [fullPokemonData, setFullPokemonData] = useState([]); 
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isDataReady, setIsDataReady] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPokemon, setSelectedPokemon] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  // Search Logic (Advanced)
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [allAbilities, setAllAbilities] = useState([]);
   const [allMoves, setAllMoves] = useState([]);
 
-  // #note: FETCH TOÀN BỘ DỮ LIỆU KHI KHỞI ĐỘNG (Batch Fetching)
+  // Fetch Data
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        // 1. Fetch danh sách tên 1025 Pokemon
         const listRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
         const listData = await listRes.json();
         const allUrls = listData.results;
 
-        // 2. Fetch chi tiết theo batch (để tránh quá tải browser nhưng vẫn đảm bảo lấy hết)
-        const BATCH_SIZE = 50; // Tải 50 con mỗi lần
+        const BATCH_SIZE = 50;
         let loadedCount = 0;
         let finalData = [];
 
-        // Fetch Search Helpers
         fetch('https://pokeapi.co/api/v2/ability?limit=1000').then(r=>r.json()).then(d=>setAllAbilities(d.results));
         fetch('https://pokeapi.co/api/v2/move?limit=1000').then(r=>r.json()).then(d=>setAllMoves(d.results));
 
@@ -408,18 +443,14 @@ export default function App() {
               try {
                 const res = await fetch(p.url);
                 return res.json();
-              } catch { return null; } // Skip error
+              } catch { return null; }
             })
           );
           
           const validDetails = batchDetails.filter(d => d !== null);
           finalData = [...finalData, ...validDetails];
           loadedCount += validDetails.length;
-          
-          // Cập nhật tiến độ
           setLoadingProgress(Math.floor((loadedCount / allUrls.length) * 100));
-          
-          // Render từng phần để người dùng không phải đợi trắng trang
           setFullPokemonData(prev => [...prev, ...validDetails]);
         }
         
@@ -429,7 +460,6 @@ export default function App() {
     fetchAllData();
   }, []);
 
-  // --- Handle Search Advanced ---
   useEffect(() => {
     if (!searchTerm) {
       setSearchSuggestions([]);
@@ -452,23 +482,17 @@ export default function App() {
       setSearchTerm(`${item.type}: ${item.name}`);
     }
     setShowSuggestions(false);
-    setCurrentPage(1); // Reset về trang 1 khi search
+    setCurrentPage(1);
   };
 
-  // --- Filter & Sort Logic ---
   const processedList = useMemo(() => {
     let result = [...fullPokemonData];
-
-    // 1. Filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       if (term.startsWith('ability:')) {
-         // Logic lọc sâu có thể cần fetch thêm API nếu dữ liệu fullPokemonData không đủ,
-         // nhưng ở đây ta tìm trong danh sách đã tải (nhanh hơn)
          const abilityName = term.split(':')[1].trim();
          result = result.filter(p => p.abilities.some(a => a.ability.name === abilityName));
       } else if (term.startsWith('move:')) {
-         // Move rất nhiều, filter trong RAM 1025 con có thể hơi nặng nhưng vẫn OK
          const moveName = term.split(':')[1].trim();
          result = result.filter(p => p.moves.some(m => m.move.name === moveName));
       } else {
@@ -476,7 +500,6 @@ export default function App() {
       }
     }
 
-    // 2. Sort
     if (sortConfig.key) {
       result.sort((a, b) => {
         let aValue, bValue;
@@ -496,11 +519,9 @@ export default function App() {
         return 0;
       });
     }
-
     return result;
   }, [fullPokemonData, searchTerm, sortConfig]);
 
-  // --- Pagination Logic ---
   const totalPages = Math.ceil(processedList.length / itemsPerPage);
   const currentData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -508,14 +529,22 @@ export default function App() {
   }, [processedList, currentPage]);
 
   const handleSort = (key) => {
-    let direction = 'desc'; // Mặc định sort số từ cao xuống thấp
+    let direction = 'desc';
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc';
     }
     setSortConfig({ key, direction });
   };
 
-  // --- Render Calculator Helpers (Keep logic) ---
+  // Helper render sort icon
+  const renderSortIcon = (key) => {
+    if (sortConfig.key !== key) return <ArrowUpDown size={12} className="inline opacity-30 ml-1" />;
+    return sortConfig.direction === 'asc' 
+      ? <ArrowUp size={12} className="inline text-yellow-400 ml-1" />
+      : <ArrowDown size={12} className="inline text-yellow-400 ml-1" />;
+  };
+
+  // Calc Logic
   const toggleDefensiveType = (t) => {
      if(defensiveTypes.includes(t)) setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
      else if(defensiveTypes.length<2) setDefensiveTypes([...defensiveTypes,t]);
@@ -611,14 +640,12 @@ export default function App() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
                 />
-                {/* Progress Bar khi tải dữ liệu */}
                 {!isDataReady && (
                    <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-2 text-xs text-blue-400">
                       <Loader2 className="animate-spin" size={14} />
                       {loadingProgress}% Loaded
                    </div>
                 )}
-
                 {showSuggestions && searchSuggestions.length > 0 && (
                    <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-xl max-h-60 overflow-y-auto">
                       {searchSuggestions.map((item, idx) => (
@@ -638,24 +665,24 @@ export default function App() {
               </div>
             </div>
 
-            {/* TABLE LIST (WITH PAGINATION) */}
+            {/* TABLE LIST */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                <div className="flex-1 overflow-auto">
                  <table className="w-full text-left border-collapse">
                    <thead className="bg-gray-800 text-gray-400 text-xs uppercase sticky top-0 z-10 shadow-md">
                      <tr>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>ID <ArrowUpDown size={10} className="inline"/></th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>ID {renderSortIcon('id')}</th>
                        <th className="p-3">Icon</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Name</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Name {renderSortIcon('name')}</th>
                        <th className="p-3">Types</th>
                        <th className="p-3 hidden sm:table-cell">Abilities</th>
-                       <th className="p-3 cursor-pointer text-yellow-500 hover:text-yellow-300" onClick={() => handleSort('bst')}>BST</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('hp')}>HP</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('attack')}>Atk</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('defense')}>Def</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-attack')}>SpA</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-defense')}>SpD</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('speed')}>Spe</th>
+                       <th className="p-3 cursor-pointer text-yellow-500 hover:text-yellow-300" onClick={() => handleSort('bst')}>BST {renderSortIcon('bst')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('hp')}>HP {renderSortIcon('hp')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('attack')}>Atk {renderSortIcon('attack')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('defense')}>Def {renderSortIcon('defense')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-attack')}>SpA {renderSortIcon('special-attack')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-defense')}>SpD {renderSortIcon('special-defense')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('speed')}>Spe {renderSortIcon('speed')}</th>
                      </tr>
                    </thead>
                    <tbody className="text-sm divide-y divide-gray-800">
@@ -672,9 +699,15 @@ export default function App() {
                              <td className="p-3">
                                 {p.types.map(t => <TypeBadge key={t.type.name} type={t.type.name} small />)}
                              </td>
-                             <td className="p-3 hidden sm:table-cell text-xs text-gray-400">
-                                {p.abilities.slice(0,2).map(a => a.ability.name.replace('-',' ')).join(', ')}
-                                {p.abilities.length > 2 && '...'}
+                             <td className="p-3 hidden sm:table-cell text-xs">
+                                <div className="flex flex-col gap-0.5">
+                                   {p.abilities.filter(a=>!a.is_hidden).map((a, i) => (
+                                      <span key={i} className="font-bold text-gray-200 capitalize">{a.ability.name.replace('-',' ')}</span>
+                                   ))}
+                                   {p.abilities.filter(a=>a.is_hidden).map((a, i) => (
+                                      <span key={i} className="text-gray-400 capitalize">{a.ability.name.replace('-',' ')}</span> 
+                                   ))}
+                                </div>
                              </td>
                              <td className="p-3 font-bold text-yellow-500">{bst}</td>
                              <td className="p-3 text-gray-300">{getS('hp')}</td>
@@ -690,7 +723,7 @@ export default function App() {
                  </table>
                </div>
                
-               {/* Pagination Controls */}
+               {/* Pagination */}
                <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
                   <span className="text-gray-400">
                      Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, processedList.length)} of {processedList.length}
@@ -719,7 +752,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB CALCULATOR (Giữ nguyên) */}
+        {/* TAB CALCULATOR */}
         {activeTab === 'calc' && (
           <div className="h-full overflow-y-auto p-4 bg-gray-100 text-gray-800 animate-fadeIn">
             {/* Defensive */}
