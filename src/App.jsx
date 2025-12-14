@@ -63,11 +63,21 @@ const ABILITY_IMMUNITIES = {
   'wonder-guard': { special: 'wonder_guard' } 
 };
 
+// Hàm tính tương khắc thường
 const getMultiplier = (attacker, defender) => {
   if (MATCHUPS[attacker] && MATCHUPS[attacker][defender] !== undefined) {
     return MATCHUPS[attacker][defender];
   }
   return 1;
+};
+
+// Hàm tính tương khắc Inverse (Đảo ngược)
+const getInverseMultiplier = (attacker, defender) => {
+  const normal = getMultiplier(attacker, defender);
+  if (normal === 0) return 2;    // Immune -> Super Effective
+  if (normal === 0.5) return 2;  // Not very -> Super Effective
+  if (normal === 2) return 0.5;  // Super -> Not very
+  return 1;                      // Neutral -> Neutral
 };
 
 // ==========================================
@@ -265,8 +275,6 @@ const TypeEffectivenessBox = ({ types, abilities }) => {
         {renderGroup(4, '4x', 'text-white', 'bg-red-600')}
         {renderGroup(2, '2x', 'text-white', 'bg-red-500')}
       </div>
-      
-      {/* 1x (Ẩn cho gọn) */}
       
       {/* Resistance */}
       <div className="space-y-1">
@@ -536,7 +544,6 @@ export default function App() {
     setSortConfig({ key, direction });
   };
 
-  // Helper render sort icon
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) return <ArrowUpDown size={12} className="inline opacity-30 ml-1" />;
     return sortConfig.direction === 'asc' 
@@ -544,26 +551,37 @@ export default function App() {
       : <ArrowDown size={12} className="inline text-yellow-400 ml-1" />;
   };
 
-  // Calc Logic
+  // Calc Logic Fixes: 
+  // 1. Unlimited Defensive Types
   const toggleDefensiveType = (t) => {
-     if(defensiveTypes.includes(t)) setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
-     else if(defensiveTypes.length<2) setDefensiveTypes([...defensiveTypes,t]);
-     else setDefensiveTypes([defensiveTypes[0],t]);
+     if(defensiveTypes.includes(t)) {
+        setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
+     } else {
+        // Removed limit check
+        setDefensiveTypes([...defensiveTypes, t]);
+     }
   };
   const toggleOffensiveType = (t) => {
      if(offensiveTypes.includes(t)) setOffensiveTypes(offensiveTypes.filter(x=>x!==t));
      else setOffensiveTypes([...offensiveTypes,t]);
   };
   
+  // 2. Defensive Calculation for N types
   const defensiveResults = useMemo(() => {
     if (defensiveTypes.length === 0) return null;
-    const results = { 4: [], 2: [], 1: [], 0.5: [], 0.25: [], 0: [] };
+    const results = {}; 
+    
     TYPES.forEach(attacker => {
-      let mult1 = getMultiplier(attacker, defensiveTypes[0]);
-      let mult2 = defensiveTypes[1] ? getMultiplier(attacker, defensiveTypes[1]) : 1;
-      let total = mult1 * mult2;
-      if (results[total]) results[total].push(attacker);
+      let total = 1;
+      defensiveTypes.forEach(def => {
+         total *= getMultiplier(attacker, def);
+      });
+      
+      // Group by multiplier
+      if (!results[total]) results[total] = [];
+      results[total].push(attacker);
     });
+    
     return results;
   }, [defensiveTypes]);
 
@@ -586,15 +604,19 @@ export default function App() {
   const ResultRow = ({ multiplier, typesList, label }) => {
     if (!typesList || typesList.length === 0) return null;
     let colorStyle = { color: '#374151', bg: '#F3F4F6' };
-    if (multiplier === 4) colorStyle = { color: '#991B1B', bg: '#FEE2E2' };
-    if (multiplier === 2) colorStyle = { color: '#9D174D', bg: '#FCE7F3' };
-    if (multiplier === 0.5) colorStyle = { color: '#166534', bg: '#DCFCE7' };
-    if (multiplier === 0.25) colorStyle = { color: '#14532D', bg: '#F0FDF4' };
-    if (multiplier === 0) colorStyle = { color: '#1F2937', bg: '#E5E7EB' };
+    
+    // Logic màu sắc linh hoạt hơn cho nhiều hệ số
+    if (multiplier >= 4) colorStyle = { color: '#991B1B', bg: '#FEE2E2' }; // Đỏ đậm (Nguy hiểm/Mạnh)
+    else if (multiplier >= 2) colorStyle = { color: '#9D174D', bg: '#FCE7F3' };
+    else if (multiplier === 1) colorStyle = { color: '#374151', bg: '#F3F4F6' };
+    else if (multiplier === 0) colorStyle = { color: '#1F2937', bg: '#E5E7EB' };
+    else if (multiplier <= 0.25) colorStyle = { color: '#14532D', bg: '#F0FDF4' }; // Xanh đậm (Kháng tốt)
+    else if (multiplier <= 0.5) colorStyle = { color: '#166534', bg: '#DCFCE7' };
+
     return (
       <div className="mb-2 p-2 rounded border flex flex-col sm:flex-row sm:items-center gap-2" style={{backgroundColor: colorStyle.bg}}>
-        <div className="flex items-center gap-2 min-w-[150px]">
-          <span className="font-bold" style={{color: colorStyle.color}}>{multiplier}x</span>
+        <div className="flex items-center gap-2 min-w-[180px]">
+          <span className="font-bold text-lg" style={{color: colorStyle.color}}>{multiplier}x</span>
           <span className="text-xs font-medium opacity-80">{label}</span>
         </div>
         <div className="flex flex-wrap gap-1">
@@ -625,7 +647,7 @@ export default function App() {
       {/* MAIN CONTENT */}
       <div className="flex-1 overflow-hidden relative w-full max-w-7xl mx-auto bg-gray-900 sm:border-x sm:border-gray-800">
         
-        {/* ================= TAB POKEDEX ================= */}
+        {/* ================= TAB POKEDEX (TABLE LIST) ================= */}
         {activeTab === 'pokedex' && (
           <div className="flex flex-col h-full animate-fadeIn">
             {/* Search Bar */}
@@ -752,22 +774,27 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB CALCULATOR */}
+        {/* ================= TAB CALCULATOR (UPDATED) ================= */}
         {activeTab === 'calc' && (
           <div className="h-full overflow-y-auto p-4 bg-gray-100 text-gray-800 animate-fadeIn">
-            {/* Defensive */}
+            
+            {/* 1. Defensive Analysis (Unlimited Types) */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
-                <Shield size={20} className="text-blue-500"/> Defensive Analysis
+                <Shield size={20} className="text-blue-500"/> Defensive Analysis (Multi-Type)
               </h2>
+              
+              {/* Selected Types */}
               <div className="flex flex-wrap gap-2 mb-4 min-h-[40px]">
                 {defensiveTypes.map(t => (
-                  <button key={t} onClick={() => toggleDefensiveType(t)} className="flex items-center gap-1 bg-gray-800 text-white px-3 py-1 rounded-full text-sm hover:bg-black transition-colors">
+                  <button key={t} onClick={() => toggleDefensiveType(t)} className="flex items-center gap-1 bg-gray-800 text-white px-3 py-1 rounded-full text-sm hover:bg-black transition-colors animate-fadeIn">
                     {t} <X size={12}/>
                   </button>
                 ))}
-                {defensiveTypes.length === 0 && <span className="text-sm text-gray-400 italic py-1">Select up to 2 types below...</span>}
+                {defensiveTypes.length === 0 && <span className="text-sm text-gray-400 italic py-1">Select types below (Unlimited)...</span>}
               </div>
+
+              {/* Type Buttons */}
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
                 {TYPES.map(type => (
                   <button key={type} onClick={() => toggleDefensiveType(type)} style={{borderColor: TYPE_COLORS[type], color: defensiveTypes.includes(type) ? 'white' : TYPE_COLORS[type], backgroundColor: defensiveTypes.includes(type) ? TYPE_COLORS[type] : 'transparent'}} className="border-2 font-bold text-xs py-1 px-2 rounded hover:opacity-80 transition-all uppercase">
@@ -775,17 +802,27 @@ export default function App() {
                   </button>
                 ))}
               </div>
+
+              {/* Results */}
               {defensiveResults && (
                 <div className="mt-4 border-t pt-4">
-                  <ResultRow multiplier={4} typesList={defensiveResults[4]} label="Takes 4x from" />
-                  <ResultRow multiplier={2} typesList={defensiveResults[2]} label="Takes 2x from" />
-                  <ResultRow multiplier={0.5} typesList={defensiveResults[0.5]} label="Resists (0.5x)" />
-                  <ResultRow multiplier={0.25} typesList={defensiveResults[0.25]} label="Resists (0.25x)" />
-                  <ResultRow multiplier={0} typesList={defensiveResults[0]} label="Immune to (0x)" />
+                  {Object.keys(defensiveResults).sort((a,b) => parseFloat(b) - parseFloat(a)).map(multKey => {
+                     const mult = parseFloat(multKey);
+                     if (mult === 1) return null; // Hide 1x for cleaner view
+                     return (
+                        <ResultRow 
+                           key={multKey}
+                           multiplier={mult} 
+                           typesList={defensiveResults[multKey]} 
+                           label={mult > 1 ? `Takes ${mult}x from` : (mult === 0 ? "Immune to" : `Resists (${mult}x)`)} 
+                        />
+                     )
+                  })}
                 </div>
               )}
             </div>
-            {/* Offensive */}
+
+            {/* 2. Offensive Coverage */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
                 <Sword size={20} className="text-red-500"/> Offensive Coverage
@@ -805,38 +842,46 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              
+              {/* Detailed Breakdown 4x, 2x, 1x... */}
               {offensiveResults && (
                  <div className="mt-4 border-t pt-4">
-                    <ResultRow multiplier={4} typesList={offensiveResults[4]} label="Hits 4x against" />
-                    <ResultRow multiplier={2} typesList={offensiveResults[2]} label="Hits 2x against" />
-                    <ResultRow multiplier={0.5} typesList={offensiveResults[0.5]} label="Not effective (0.5x)" />
-                    <ResultRow multiplier={0} typesList={offensiveResults[0]} label="No effect (0x)" />
+                    <ResultRow multiplier={4} typesList={offensiveResults[4]} label="Super Effective (4x)" />
+                    <ResultRow multiplier={2} typesList={offensiveResults[2]} label="Super Effective (2x)" />
+                    <ResultRow multiplier={1} typesList={offensiveResults[1]} label="Neutral (1x)" />
+                    <ResultRow multiplier={0.5} typesList={offensiveResults[0.5]} label="Not Effective (0.5x)" />
+                    <ResultRow multiplier={0.25} typesList={offensiveResults[0.25]} label="Not Effective (0.25x)" />
+                    <ResultRow multiplier={0} typesList={offensiveResults[0]} label="No Effect (0x)" />
                  </div>
               )}
             </div>
-             {/* Chart */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 overflow-x-auto relative">
-               <h2 className="text-lg font-bold mb-3 text-gray-700">Type Chart Reference</h2>
+            
+            {/* 3. Type Chart Reference (Larger & Centered) */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-x-auto relative mb-4 flex flex-col items-center">
+               <h2 className="text-xl font-bold mb-4 text-gray-700 w-full text-left max-w-4xl">Type Chart Reference</h2>
+               
+               {/* Tooltip */}
                {hoverInfo && (
                   <div className="fixed z-50 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none" style={{left: hoverInfo.x + 10, top: hoverInfo.y + 10}}>
                      {hoverInfo.attacker} → {hoverInfo.defender}: <span className="font-bold text-yellow-400">{hoverInfo.val}x</span>
                   </div>
                )}
-               <div className="inline-block min-w-full">
+
+               <div className="inline-block">
                   <div className="flex">
-                    <div className="w-6 h-6 mr-1"></div>
-                    {TYPES.map(t => <div key={t} className="w-6 h-6 mr-1 flex items-center justify-center"><span className="text-[8px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[t]}}>{t.substring(0,3)}</span></div>)}
+                    <div className="w-9 h-9 mr-1"></div>
+                    {TYPES.map(t => <div key={t} className="w-9 h-9 mr-1 flex items-center justify-center"><span className="text-[10px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[t]}}>{t.substring(0,3)}</span></div>)}
                   </div>
                   {TYPES.map(atk => (
                     <div key={atk} className="flex mb-1">
-                       <div className="w-6 h-6 mr-1 flex items-center justify-center"><span className="text-[8px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[atk]}}>{atk.substring(0,3)}</span></div>
+                       <div className="w-9 h-9 mr-1 flex items-center justify-center"><span className="text-[10px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[atk]}}>{atk.substring(0,3)}</span></div>
                        {TYPES.map(def => {
                          const val = getMultiplier(atk, def);
                          let bg = '#f3f4f6';
                          if(val === 2) bg = '#4ade80'; if(val === 0.5) bg = '#fca5a5'; if(val === 0) bg = '#1f2937';
                          return (
                            <div key={def} 
-                                className="w-6 h-6 mr-1 flex items-center justify-center text-[9px] font-bold cursor-pointer hover:border border-black" 
+                                className="w-9 h-9 mr-1 flex items-center justify-center text-[11px] font-bold cursor-pointer hover:border border-black transition-colors" 
                                 style={{backgroundColor: bg, color: val===0?'white':'black'}}
                                 onMouseEnter={(e) => { const rect = e.target.getBoundingClientRect(); setHoverInfo({attacker: atk, defender: def, val, x: rect.right, y: rect.top}); }}
                                 onMouseLeave={() => setHoverInfo(null)}
@@ -849,6 +894,47 @@ export default function App() {
                   ))}
                </div>
             </div>
+
+            {/* 4. Inverse Type Chart (New Feature) */}
+            <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 overflow-x-auto relative flex flex-col items-center">
+               <h2 className="text-xl font-bold mb-2 text-white w-full text-left max-w-4xl flex items-center gap-2">
+                 <RefreshCw size={24} className="text-purple-400"/> Inverse Battle Chart
+               </h2>
+               <p className="text-gray-400 text-sm mb-4 w-full text-left max-w-4xl">
+                 In Inverse Battles: 0x & 0.5x becomes 2x. 2x becomes 0.5x. 1x stays 1x.
+               </p>
+
+               <div className="inline-block">
+                  <div className="flex">
+                    <div className="w-9 h-9 mr-1"></div>
+                    {TYPES.map(t => <div key={t} className="w-9 h-9 mr-1 flex items-center justify-center"><span className="text-[10px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[t]}}>{t.substring(0,3)}</span></div>)}
+                  </div>
+                  {TYPES.map(atk => (
+                    <div key={atk} className="flex mb-1">
+                       <div className="w-9 h-9 mr-1 flex items-center justify-center"><span className="text-[10px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[atk]}}>{atk.substring(0,3)}</span></div>
+                       {TYPES.map(def => {
+                         const val = getInverseMultiplier(atk, def);
+                         let bg = '#374151'; // Default gray for 1x
+                         let text = '1';
+                         if(val === 2) { bg = '#4ade80'; text = '2'; } // Green for Super Effective
+                         if(val === 0.5) { bg = '#f87171'; text = '½'; } // Red for Not Very Effective
+                         
+                         return (
+                           <div key={def} 
+                                className="w-9 h-9 mr-1 flex items-center justify-center text-[11px] font-bold cursor-pointer hover:border border-white transition-colors" 
+                                style={{backgroundColor: bg, color: 'white'}}
+                                onMouseEnter={(e) => { const rect = e.target.getBoundingClientRect(); setHoverInfo({attacker: atk, defender: def, val, x: rect.right, y: rect.top}); }}
+                                onMouseLeave={() => setHoverInfo(null)}
+                           >
+                             {text}
+                           </div>
+                         )
+                       })}
+                    </div>
+                  ))}
+               </div>
+            </div>
+
           </div>
         )}
       </div>
