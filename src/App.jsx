@@ -433,7 +433,6 @@ export default function App() {
   const itemsPerPage = 50;
 
   const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [allAbilities, setAllAbilities] = useState([]);
   const [allMoves, setAllMoves] = useState([]);
 
@@ -486,12 +485,20 @@ export default function App() {
             if (b.variations && b.variations.length > 0) {
                 b.variations.sort((v1, v2) => {
                     const getScore = (n) => {
+                        // Priority 1: Regional Forms
                         if (n.includes('-alola') || n.includes('-galar') || n.includes('-hisui') || n.includes('-paldea')) return 1;
+                        // Priority 2: Mega Forms
                         if (n.includes('-mega')) return 2;
-                        if (n.includes('-gmax')) return 3;
-                        return 4; // Các form khác
+                        // Priority 3: Others (Cosplay, Cap, etc.)
+                        if (n.includes('-partner') || n.includes('-cap') || n.includes('-cosplay') || n.includes('-origin') || n.includes('-diancie') || n.includes('-eternal')) return 3;
+                        // Priority 4: G-Max (Last)
+                        if (n.includes('-gmax')) return 4; 
+                        return 5; // Fallback
                     };
-                    return getScore(v1.name) - getScore(v2.name);
+                    const s1 = getScore(v1.name);
+                    const s2 = getScore(v2.name);
+                    if (s1 !== s2) return s1 - s2;
+                    return v1.name.localeCompare(v2.name); // Tie breaker
                 });
             }
         });
@@ -542,42 +549,81 @@ export default function App() {
     fetchAllData();
   }, []);
 
+  // New Suggestion Logic: show suggestions only when input changes
   useEffect(() => {
-    if (!searchTerm) {
+    if (!searchTerm || searchTerm.startsWith('Related to:')) {
       setSearchSuggestions([]);
       return;
     }
     const term = searchTerm.toLowerCase();
     const suggestions = [];
+    
+    // 1. Check for Pokemon match
+    const pokemonMatch = fullPokemonData.find(p => p.name.toLowerCase() === term);
+    
+    // Suggest "Related to" only if the name is an exact base match
+    if (pokemonMatch && pokemonMatch.id <= 10000) {
+      suggestions.push({ type: 'Related to', name: pokemonMatch.name });
+    }
+
+    // 2. Ability and Move Suggestions
     allAbilities.forEach(a => { if (a.name.includes(term)) suggestions.push({ type: 'Ability', name: a.name, url: a.url }); });
     allMoves.forEach(m => { if (m.name.includes(term)) suggestions.push({ type: 'Move', name: m.name, url: m.url }); });
-    fullPokemonData.forEach(p => { if (p.name.includes(term)) suggestions.push({ type: 'Pokemon', name: p.name }); });
+    
+    // 3. Pokemon Name Suggestions
+    fullPokemonData.forEach(p => { 
+      // Only suggest base forms for name search unless it's a specific form search
+      if ((p.name.includes(term) && p.id <= 10000) || (p.name.includes(term) && term.includes('-'))) {
+        if (!suggestions.some(s => s.name === p.name)) {
+          suggestions.push({ type: 'Pokemon', name: p.name });
+        }
+      }
+    });
 
     setSearchSuggestions(suggestions.slice(0, 8));
-    setShowSuggestions(true);
   }, [searchTerm, fullPokemonData, allAbilities, allMoves]);
 
-  const handleSelectSuggestion = async (item) => {
-    if (item.type === 'Pokemon') {
-      setSearchTerm(item.name);
+  const handleSelectSuggestion = (item) => {
+    if (item.type === 'Related to') {
+      setSearchTerm(`Related to: ${item.name.replace('-', ' ')}`);
     } else {
-      setSearchTerm(`${item.type}: ${item.name}`);
+      setSearchTerm(`${item.type}: ${item.name.replace('-', ' ')}`);
     }
-    setShowSuggestions(false);
     setCurrentPage(1);
+    // Suggestions will clear via the useEffect hook when searchTerm changes to a tagged format
   };
 
   const processedList = useMemo(() => {
     let result = [...fullPokemonData];
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      if (term.startsWith('ability:')) {
-         const abilityName = term.split(':')[1].trim();
+
+      // NEW LOGIC FOR "Related to: [PokemonName]"
+      if (term.startsWith('related to:')) {
+        const baseName = term.split(':')[1].trim().toLowerCase().replace(/ /g, '-');
+        
+        // 1. Find the base Pokemon
+        const basePokemon = fullPokemonData.find(p => p.name.toLowerCase() === baseName && p.id <= 10000);
+        
+        if (basePokemon) {
+            const baseId = basePokemon.id;
+            // 2. Filter all variations that share the same displayId (which is the baseId)
+            result = result.filter(p => (p.displayId || p.id) === baseId);
+        } else {
+            // If the base Pokemon is not found (e.g., misspelled), show empty list
+            result = []; 
+        }
+      } 
+      // EXISTING TAG LOGIC
+      else if (term.startsWith('ability:')) {
+         const abilityName = term.split(':')[1].trim().toLowerCase().replace(/ /g, '-');
          result = result.filter(p => p.abilities.some(a => a.ability.name === abilityName));
       } else if (term.startsWith('move:')) {
-         const moveName = term.split(':')[1].trim();
+         const moveName = term.split(':')[1].trim().toLowerCase().replace(/ /g, '-');
          result = result.filter(p => p.moves.some(m => m.move.name === moveName));
-      } else {
+      } 
+      // REGULAR NAME/ID SEARCH
+      else {
          result = result.filter(p => p.name.includes(term) || String(p.id).includes(term));
       }
     }
@@ -626,12 +672,10 @@ export default function App() {
   };
 
   // Calc Logic Fixes: 
-  // 1. Unlimited Defensive Types
   const toggleDefensiveType = (t) => {
      if(defensiveTypes.includes(t)) {
         setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
      } else {
-        // Removed limit check
         setDefensiveTypes([...defensiveTypes, t]);
      }
   };
@@ -640,7 +684,7 @@ export default function App() {
      else setOffensiveTypes([...offensiveTypes,t]);
   };
   
-  // 2. Defensive Calculation for N types
+  // Defensive Calculation for N types
   const defensiveResults = useMemo(() => {
     if (defensiveTypes.length === 0) return null;
     const results = {}; 
@@ -689,15 +733,13 @@ export default function App() {
 
     return (
       <div className="mb-2 p-2 rounded border flex flex-col sm:flex-row sm:items-center gap-2" style={{backgroundColor: colorStyle.bg}}>
-        <div className="flex items-center gap-2 min-w-[200px]"> {/* Tăng min-width một chút để đẹp hơn */}
+        <div className="flex items-center gap-2 min-w-[200px]"> 
           <span className="font-bold text-lg" style={{color: colorStyle.color}}>{multiplier}x</span>
           <span className="text-xs font-medium opacity-80">{label}</span>
           
-          {/* --- PHẦN MỚI THÊM VÀO: HIỂN THỊ SỐ LƯỢNG HỆ --- */}
           <span className="ml-1 text-[11px] text-gray-500/80 font-normal">
             ({typesList.length} types)
           </span>
-          {/* ----------------------------------------------- */}
 
         </div>
         <div className="flex flex-wrap gap-1">
@@ -731,7 +773,7 @@ export default function App() {
         {/* ================= TAB POKEDEX (TABLE LIST) ================= */}
         {activeTab === 'pokedex' && (
           <div className="flex flex-col h-full animate-fadeIn">
-            {/* Search Bar */}
+            {/* Search Bar & Suggestions (UPDATED) */}
             <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0 relative z-30">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
@@ -741,7 +783,6 @@ export default function App() {
                   className="w-full bg-gray-900 text-white pl-9 pr-4 py-2 text-sm rounded border border-gray-700 focus:border-blue-500 outline-none"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onFocus={() => setShowSuggestions(true)}
                 />
                 {!isDataReady && (
                    <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-2 text-xs text-blue-400">
@@ -749,23 +790,34 @@ export default function App() {
                       {loadingProgress}% Loaded
                    </div>
                 )}
-                {showSuggestions && searchSuggestions.length > 0 && (
-                   <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-xl max-h-60 overflow-y-auto">
-                      {searchSuggestions.map((item, idx) => (
-                        <div 
-                          key={idx} 
-                          className="px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm flex items-center gap-2 border-b border-gray-700/50"
-                          onClick={() => handleSelectSuggestion(item)}
-                        >
-                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${item.type==='Pokemon'?'bg-red-900 text-red-200': item.type==='Ability'?'bg-yellow-900 text-yellow-200':'bg-blue-900 text-blue-200'}`}>
-                             {item.type}
-                           </span>
-                           <span className="capitalize text-white font-medium">{item.name.replace('-', ' ')}</span>
-                        </div>
-                      ))}
-                   </div>
-                )}
               </div>
+              
+              {/* Horizontal Suggestions Display (UPDATED) */}
+              {(searchTerm && searchSuggestions.length > 0 && !searchTerm.startsWith('Related to:')) && (
+                <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-700/50">
+                  {searchSuggestions.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      className="cursor-pointer text-xs font-medium px-2 py-1 rounded-full border transition-all flex items-center gap-1 shadow-md"
+                      style={{
+                        backgroundColor: item.type === 'Related to' ? '#F87171' : item.type === 'Pokemon' ? '#6D28D9' : item.type === 'Ability' ? '#FBBF24' : '#3B82F6',
+                        color: 'white'
+                      }}
+                      onClick={() => handleSelectSuggestion(item)}
+                    >
+                      {item.type}: <span className="capitalize font-bold">{item.name.replace('-', ' ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Active Filter Display (UPDATED) */}
+              {searchTerm.startsWith('Related to:') || searchTerm.startsWith('Ability:') || searchTerm.startsWith('Move:') ? (
+                 <div className="mt-2 text-sm text-gray-400 pt-2 border-t border-gray-700/50">
+                   <span className="font-bold text-red-400">Filter Active:</span> <span className="text-white">{searchTerm}</span>
+                   <button onClick={() => setSearchTerm('')} className="ml-2 text-blue-400 hover:text-blue-300 underline text-xs">Clear Filter</button>
+                 </div>
+              ) : null}
             </div>
 
             {/* TABLE LIST */}
@@ -790,7 +842,7 @@ export default function App() {
                    </thead>
                    <tbody className="text-sm divide-y divide-gray-800">
                      {currentData.map(p => {
-                        const getS = (n) => p.stats.find(s=>s.stat.name===n)?.base_stat || 0;
+                        const getS = (n) => p.stats.find(s=>s.stat.name === n)?.base_stat || 0;
                         const bst = p.stats.reduce((a,b)=>a+b.base_stat,0);
                         return (
                           <tr key={p.name} onClick={() => setSelectedPokemon(p)} className="hover:bg-gray-800/50 cursor-pointer transition-colors group">
@@ -855,7 +907,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB CALCULATOR (UPDATED) ================= */}
+        {/* ================= TAB CALCULATOR ================= */}
         {activeTab === 'calc' && (
           <div className="h-full overflow-y-auto p-4 bg-gray-100 text-gray-800 animate-fadeIn">
             
