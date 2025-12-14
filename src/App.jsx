@@ -615,9 +615,16 @@ export default function App() {
 
     return (
       <div className="mb-2 p-2 rounded border flex flex-col sm:flex-row sm:items-center gap-2" style={{backgroundColor: colorStyle.bg}}>
-        <div className="flex items-center gap-2 min-w-[180px]">
+        <div className="flex items-center gap-2 min-w-[200px]"> {/* Tăng min-width một chút để đẹp hơn */}
           <span className="font-bold text-lg" style={{color: colorStyle.color}}>{multiplier}x</span>
           <span className="text-xs font-medium opacity-80">{label}</span>
+          
+          {/* --- PHẦN MỚI THÊM VÀO: HIỂN THỊ SỐ LƯỢNG HỆ --- */}
+          <span className="ml-1 text-[11px] text-gray-500/80 font-normal">
+            ({typesList.length} types)
+          </span>
+          {/* ----------------------------------------------- */}
+
         </div>
         <div className="flex flex-wrap gap-1">
           {typesList.map(t => <span key={t} style={{backgroundColor: TYPE_COLORS[t]}} className="text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">{t}</span>)}
