@@ -63,10 +63,15 @@ const ABILITY_IMMUNITIES = {
   'wonder-guard': { special: 'wonder_guard' } 
 };
 
+// Helper: Viết hoa chữ cái đầu (quan trọng để khớp key trong bảng Type)
+const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
 // Hàm tính tương khắc thường
 const getMultiplier = (attacker, defender) => {
-  if (MATCHUPS[attacker] && MATCHUPS[attacker][defender] !== undefined) {
-    return MATCHUPS[attacker][defender];
+  // Đảm bảo defender được viết hoa đúng chuẩn (ví dụ: 'fire' -> 'Fire')
+  const def = capitalize(defender);
+  if (MATCHUPS[attacker] && MATCHUPS[attacker][def] !== undefined) {
+    return MATCHUPS[attacker][def];
   }
   return 1;
 };
@@ -227,6 +232,7 @@ const TypeEffectivenessBox = ({ types, abilities }) => {
     TYPES.forEach(attacker => {
       let mult = 1;
       types.forEach(t => {
+        // FIX: Viết hoa tên hệ để khớp với bảng MATCHUPS
         mult *= getMultiplier(attacker, t.type.name); 
       });
 
@@ -303,8 +309,10 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
         {/* Header */}
         <div className="bg-gray-900 p-3 flex justify-between items-center border-b border-gray-700 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-gray-500 font-mono font-bold text-lg">#{String(pokemon.id).padStart(3, '0')}</span>
-            <span className="text-white font-bold text-xl capitalize">{pokemon.name.replace('-', ' ')}</span>
+            <span className="text-gray-500 font-mono font-bold text-lg">
+              #{String(pokemon.displayId || pokemon.id).padStart(3, '0')}
+            </span>
+            <span className="text-white font-bold text-xl capitalize">{pokemon.name.replace(/-/g, ' ')}</span>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-700"><X size={24} /></button>
         </div>
@@ -429,28 +437,94 @@ export default function App() {
   const [allAbilities, setAllAbilities] = useState([]);
   const [allMoves, setAllMoves] = useState([]);
 
-  // Fetch Data
+  // Fetch Data (Updated for Mega/Gmax/Forms)
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const listRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
+        // Tăng giới hạn lên 2000 để lấy hết Forms, Megas, Gmax (hiện tại có khoảng 1300 mục)
+        const listRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=2000');
         const listData = await listRes.json();
-        const allUrls = listData.results;
+        const rawList = listData.results;
 
+        // Phân loại: Base (<= 10000) và Forms (> 10000)
+        const bases = [];
+        const forms = [];
+        
+        rawList.forEach(p => {
+           // Lấy ID từ URL (vd: .../pokemon/1/)
+           const id = parseInt(p.url.split('/').filter(Boolean).pop());
+           if (id <= 10000) {
+             bases.push({ ...p, id, variations: [] });
+           } else {
+             forms.push({ ...p, id });
+           }
+        });
+
+        // Sắp xếp Base theo ID
+        bases.sort((a,b) => a.id - b.id);
+
+        // Gom nhóm Forms vào Bases
+        // Logic: Tìm Base có tên dài nhất mà là prefix của tên Form
+        forms.forEach(f => {
+           // Tìm các base khớp tên (form name bắt đầu bằng base name)
+           const matches = bases.filter(b => f.name.startsWith(b.name));
+           // Chọn base có tên dài nhất để chính xác nhất
+           matches.sort((a,b) => b.name.length - a.name.length);
+           
+           if (matches.length > 0) {
+              const match = matches[0];
+              // Thêm thuộc tính displayId để hiển thị giống base
+              match.variations.push({ ...f, displayId: match.id }); 
+           } else {
+              // Trường hợp hiếm (form độc lập), thêm vào cuối danh sách base
+              bases.push({ ...f, variations: [], displayId: f.id }); 
+           }
+        });
+
+        // NEW STEP: Sắp xếp variations trước khi flatten
+        bases.forEach(b => {
+            if (b.variations && b.variations.length > 0) {
+                b.variations.sort((v1, v2) => {
+                    const getScore = (n) => {
+                        if (n.includes('-alola') || n.includes('-galar') || n.includes('-hisui') || n.includes('-paldea')) return 1;
+                        if (n.includes('-mega')) return 2;
+                        if (n.includes('-gmax')) return 3;
+                        return 4; // Các form khác
+                    };
+                    return getScore(v1.name) - getScore(v2.name);
+                });
+            }
+        });
+
+        // Làm phẳng danh sách để fetch
+        const sortedList = [];
+        bases.forEach(b => {
+           sortedList.push(b);
+           // Thêm các biến thể ngay sau base
+           if (b.variations) {
+             b.variations.forEach(v => sortedList.push(v));
+           }
+        });
+
+        // Batch Fetch Details
         const BATCH_SIZE = 50;
         let loadedCount = 0;
         let finalData = [];
 
+        // Fetch Search Helpers (nhẹ)
         fetch('https://pokeapi.co/api/v2/ability?limit=1000').then(r=>r.json()).then(d=>setAllAbilities(d.results));
         fetch('https://pokeapi.co/api/v2/move?limit=1000').then(r=>r.json()).then(d=>setAllMoves(d.results));
 
-        for (let i = 0; i < allUrls.length; i += BATCH_SIZE) {
-          const batch = allUrls.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < sortedList.length; i += BATCH_SIZE) {
+          const batch = sortedList.slice(i, i + BATCH_SIZE);
           const batchDetails = await Promise.all(
             batch.map(async (p) => {
               try {
                 const res = await fetch(p.url);
-                return res.json();
+                const data = await res.json();
+                // Gán displayId nếu có (từ logic form ở trên)
+                if (p.displayId) data.displayId = p.displayId;
+                return data;
               } catch { return null; }
             })
           );
@@ -458,7 +532,7 @@ export default function App() {
           const validDetails = batchDetails.filter(d => d !== null);
           finalData = [...finalData, ...validDetails];
           loadedCount += validDetails.length;
-          setLoadingProgress(Math.floor((loadedCount / allUrls.length) * 100));
+          setLoadingProgress(Math.floor((loadedCount / sortedList.length) * 100));
           setFullPokemonData(prev => [...prev, ...validDetails]);
         }
         
@@ -719,12 +793,12 @@ export default function App() {
                         const getS = (n) => p.stats.find(s=>s.stat.name===n)?.base_stat || 0;
                         const bst = p.stats.reduce((a,b)=>a+b.base_stat,0);
                         return (
-                          <tr key={p.id} onClick={() => setSelectedPokemon(p)} className="hover:bg-gray-800/50 cursor-pointer transition-colors group">
-                             <td className="p-3 font-mono text-gray-500">#{String(p.id).padStart(3,'0')}</td>
+                          <tr key={p.name} onClick={() => setSelectedPokemon(p)} className="hover:bg-gray-800/50 cursor-pointer transition-colors group">
+                             <td className="p-3 font-mono text-gray-500">#{String(p.displayId || p.id).padStart(3,'0')}</td>
                              <td className="p-3">
                                 <img src={p.sprites.front_default} alt="" className="w-10 h-10 object-contain pixelated group-hover:scale-110 transition-transform"/>
                              </td>
-                             <td className="p-3 font-bold capitalize text-white group-hover:text-blue-400">{p.name.replace('-',' ')}</td>
+                             <td className="p-3 font-bold capitalize text-white group-hover:text-blue-400">{p.name.replace(/-/g,' ')}</td>
                              <td className="p-3">
                                 {p.types.map(t => <TypeBadge key={t.type.name} type={t.type.name} small />)}
                              </td>
