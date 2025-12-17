@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X, Zap, Shield, Sword, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw, ArrowLeft, ArrowRight, Info, BookOpen, Target, Flame, Circle } from 'lucide-react';
 
 // ==========================================
-// PHẦN 1: CẤU HÌNH & DỮ LIỆU CỐ ĐỊNH
+// PHẦN 1: CẤU HÌNH & DỮ LIỆU CỐ ĐỊNH (Không đổi)
 // ==========================================
 
 const TYPES = [
@@ -82,7 +82,7 @@ const getInverseMultiplier = (attacker, defender) => {
 };
 
 // ==========================================
-// PHẦN 2: COMPONENTS HỖ TRỢ
+// PHẦN 2: COMPONENTS HỖ TRỢ (Không đổi nhiều)
 // ==========================================
 
 const TypeBadge = ({ type, small = false }) => {
@@ -119,7 +119,7 @@ const StatBar = ({ label, value, max = 255 }) => {
   );
 };
 
-// --- Updated Moves Table for Modal ---
+// --- Moves Table in Modal (Kept for Pokedex Detail) ---
 const MovesTable = ({ moves }) => {
   const [activeFilter, setActiveFilter] = useState('level-up');
   const [moveDetails, setMoveDetails] = useState({});
@@ -229,6 +229,8 @@ const MovesTable = ({ moves }) => {
     </div>
   );
 };
+
+// ... (other helper components like TypeEffectivenessBox and PokemonDetailModal remain the same)
 
 const TypeEffectivenessBox = ({ types, abilities }) => {
   const effectiveness = useMemo(() => {
@@ -401,12 +403,12 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
 };
 
 // ==========================================
-// PHẦN 3: LOGIC CHÍNH APP (UPDATED MULTI-TAG + INFO TAB)
+// PHẦN 3: LOGIC CHÍNH APP (UPDATED TABS)
 // ==========================================
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('pokedex');
-  const [infoTab, setInfoTab] = useState('moves'); // 'moves' | 'abilities'
+  // Thay đổi: activeTab giờ bao gồm 'moves' và 'abilities'
+  const [activeTab, setActiveTab] = useState('pokedex'); 
 
   // Calculator States
   const [defensiveTypes, setDefensiveTypes] = useState([]);
@@ -418,24 +420,28 @@ export default function App() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isDataReady, setIsDataReady] = useState(false);
   
-  // Info Tab Data States
+  // Moves and Abilities Data States
   const [fullMoves, setFullMoves] = useState([]);
   const [fullAbilities, setFullAbilities] = useState([]);
-  const [infoLoading, setInfoLoading] = useState(false);
-  const [infoProgress, setInfoProgress] = useState(0);
-  const [isInfoReady, setIsInfoReady] = useState(false);
+  const [isMovesReady, setIsMovesReady] = useState(false); // Trạng thái sẵn sàng cho Moves
+  const [isAbilitiesReady, setIsAbilitiesReady] = useState(false); // Trạng thái sẵn sàng cho Abilities
+  const [movesLoadProgress, setMovesLoadProgress] = useState(0);
+  const [abilitiesLoadProgress, setAbilitiesLoadProgress] = useState(0);
 
   // Search Logic
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTags, setActiveTags] = useState([]);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   
-  // Info Search Logic
+  // Info Search & Sort Logic
   const [infoSearchTerm, setInfoSearchTerm] = useState('');
   const [abilitySearchMode, setAbilitySearchMode] = useState('name'); // 'name' | 'effect'
 
   const [selectedPokemon, setSelectedPokemon] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
+  const [dexSortConfig, setDexSortConfig] = useState({ key: 'id', direction: 'asc' });
+  const [moveSortConfig, setMoveSortConfig] = useState({ key: 'id', direction: 'asc' }); // Cấu hình sắp xếp cho Moves
+  const [abilitySortConfig, setAbilitySortConfig] = useState({ key: 'id', direction: 'asc' }); // Cấu hình sắp xếp cho Abilities
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
@@ -443,8 +449,28 @@ export default function App() {
   const [allAbilitiesList, setAllAbilitiesList] = useState([]);
   const [allMovesList, setAllMovesList] = useState([]);
 
-  // --- FETCH POKEMON DATA ---
+  // Helper function for batch fetching
+  const fetchDetailsBatch = async (urlList, setProgress, resultsKey) => {
+    const BATCH = 50;
+    let results = [];
+    for(let i=0; i<urlList.length; i+=BATCH) {
+        const batch = urlList.slice(i, i+BATCH);
+        const details = await Promise.all(batch.map(async (item) => {
+            try {
+                const res = await fetch(item.url);
+                return res.json();
+            } catch { return null; }
+        }));
+        results = [...results, ...details.filter(d => d)];
+        setProgress(Math.floor(((i + BATCH) / urlList.length) * 100)); 
+    }
+    // Gán ID cho Moves/Abilities để sắp xếp theo mặc định
+    return results.map((item, index) => ({ ...item, id: index + 1 }));
+  };
+
+  // --- FETCH POKEMON DATA (Không đổi) ---
   useEffect(() => {
+    // ... (logic fetchAllData cho Pokedex, giữ nguyên)
     const fetchAllData = async () => {
       try {
         const listRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=2000');
@@ -532,61 +558,42 @@ export default function App() {
     fetchAllData();
   }, []);
 
-  // --- FETCH INFO DATA (Moves & Abilities Details) ---
+  // --- FETCH MOVES DATA (Trigger khi vào tab Moves) ---
   useEffect(() => {
-    // Only fetch if tab is info and data not ready
-    if (activeTab === 'info' && !isInfoReady && !infoLoading) {
-      const fetchInfoData = async () => {
-        setInfoLoading(true);
+    if (activeTab === 'moves' && !isMovesReady) {
+      const fetchMovesData = async () => {
         try {
-          // 1. Fetch all abilities details
-          // We limit to ~300 common ones for performance or fetch 1000 if needed.
-          // For moves ~900.
-          
-          // Helper to fetch details
-          const fetchDetails = async (urlList) => {
-             const BATCH = 50;
-             let results = [];
-             for(let i=0; i<urlList.length; i+=BATCH) {
-                const batch = urlList.slice(i, i+BATCH);
-                const details = await Promise.all(batch.map(async (item) => {
-                   try {
-                     const res = await fetch(item.url);
-                     return res.json();
-                   } catch { return null; }
-                }));
-                results = [...results, ...details.filter(d => d)];
-                setInfoProgress(Math.floor(((i + BATCH) / (urlList.length * 2)) * 100)); // Rough progress
-             }
-             return results;
-          };
-
-          // Using the lists we already fetched or fetching new ones
           const moveListRes = await fetch('https://pokeapi.co/api/v2/move?limit=1000');
-          const abilityListRes = await fetch('https://pokeapi.co/api/v2/ability?limit=1000');
-          
           const moveList = (await moveListRes.json()).results;
-          const abilityList = (await abilityListRes.json()).results;
-
-          // Fetch Abilities first
-          const abilitiesDetails = await fetchDetails(abilityList);
-          setFullAbilities(abilitiesDetails);
-          
-          // Then Moves
-          setInfoProgress(50);
-          const movesDetails = await fetchDetails(moveList);
+          setMovesLoadProgress(0);
+          const movesDetails = await fetchDetailsBatch(moveList, setMovesLoadProgress, 'moves');
           setFullMoves(movesDetails);
-
-          setIsInfoReady(true);
+          setIsMovesReady(true);
         } catch (e) { console.error(e); }
-        setInfoLoading(false);
       };
-      fetchInfoData();
+      fetchMovesData();
     }
-  }, [activeTab, isInfoReady, infoLoading]);
+  }, [activeTab, isMovesReady]);
+
+  // --- FETCH ABILITIES DATA (Trigger khi vào tab Abilities) ---
+  useEffect(() => {
+    if (activeTab === 'abilities' && !isAbilitiesReady) {
+      const fetchAbilitiesData = async () => {
+        try {
+          const abilityListRes = await fetch('https://pokeapi.co/api/v2/ability?limit=1000');
+          const abilityList = (await abilityListRes.json()).results;
+          setAbilitiesLoadProgress(0);
+          const abilitiesDetails = await fetchDetailsBatch(abilityList, setAbilitiesLoadProgress, 'abilities');
+          setFullAbilities(abilitiesDetails);
+          setIsAbilitiesReady(true);
+        } catch (e) { console.error(e); }
+      };
+      fetchAbilitiesData();
+    }
+  }, [activeTab, isAbilitiesReady]);
 
 
-  // --- SEARCH SUGGESTIONS LOGIC ---
+  // --- SEARCH SUGGESTIONS LOGIC (Không đổi) ---
   useEffect(() => {
     if (!searchTerm || searchTerm.startsWith('Related to:')) {
       setSearchSuggestions([]);
@@ -633,9 +640,10 @@ export default function App() {
     setCurrentPage(1);
   };
 
-  // --- FILTER & SORT POKEMON ---
-  const processedList = useMemo(() => {
+  // --- FILTER & SORT POKEDEX ---
+  const processedDexList = useMemo(() => {
     let result = [...fullPokemonData];
+    // ... (Filter logic for Pokedex remains the same)
     if (activeTags.length > 0) {
       result = result.filter(p => {
         return activeTags.every(tag => {
@@ -653,52 +661,33 @@ export default function App() {
       });
     }
 
-    if (sortConfig.key) {
+    if (dexSortConfig.key) {
       result.sort((a, b) => {
         let aValue, bValue;
-        if (['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'].includes(sortConfig.key)) {
-           aValue = a.stats.find(s => s.stat.name === sortConfig.key)?.base_stat || 0;
-           bValue = b.stats.find(s => s.stat.name === sortConfig.key)?.base_stat || 0;
-        } else if (sortConfig.key === 'bst') {
+        if (['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'].includes(dexSortConfig.key)) {
+           aValue = a.stats.find(s => s.stat.name === dexSortConfig.key)?.base_stat || 0;
+           bValue = b.stats.find(s => s.stat.name === dexSortConfig.key)?.base_stat || 0;
+        } else if (dexSortConfig.key === 'bst') {
            aValue = a.stats.reduce((acc, curr) => acc + curr.base_stat, 0);
            bValue = b.stats.reduce((acc, curr) => acc + curr.base_stat, 0);
         } else {
-           aValue = a[sortConfig.key];
-           bValue = b[sortConfig.key];
+           aValue = a[dexSortConfig.key];
+           bValue = b[dexSortConfig.key];
         }
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (aValue < bValue) return dexSortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return dexSortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
     return result;
-  }, [fullPokemonData, activeTags, sortConfig]);
+  }, [fullPokemonData, activeTags, dexSortConfig]);
 
-  const totalPages = Math.ceil(processedList.length / itemsPerPage);
-  const currentData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return processedList.slice(start, start + itemsPerPage);
-  }, [processedList, currentPage]);
-
-  const handleSort = (key) => {
-    let direction = 'desc';
-    if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = 'asc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const renderSortIcon = (key) => {
-    if (sortConfig.key !== key) return <ArrowUpDown size={12} className="inline opacity-30 ml-1" />;
-    return sortConfig.direction === 'asc' 
-      ? <ArrowUp size={12} className="inline text-yellow-400 ml-1" />
-      : <ArrowDown size={12} className="inline text-yellow-400 ml-1" />;
-  };
-
-  // --- INFO TAB FILTER LOGIC ---
+  // --- FILTER & SORT MOVES ---
   const processedMoves = useMemo(() => {
     if (!fullMoves.length) return [];
-    let result = fullMoves;
+    let result = [...fullMoves];
+    
+    // Filtering logic for Moves
     if (infoSearchTerm) {
       const term = infoSearchTerm.toLowerCase();
       result = result.filter(m => 
@@ -711,12 +700,56 @@ export default function App() {
         (m.priority && String(m.priority).includes(term))
       );
     }
-    return result;
-  }, [fullMoves, infoSearchTerm]);
 
+    // Sorting logic for Moves
+    if (moveSortConfig.key) {
+      result.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch(moveSortConfig.key) {
+          case 'power':
+            aValue = a.power ?? -1; 
+            bValue = b.power ?? -1;
+            break;
+          case 'accuracy':
+            aValue = a.accuracy ?? -1;
+            bValue = b.accuracy ?? -1;
+            break;
+          case 'priority':
+            aValue = a.priority ?? 0;
+            bValue = b.priority ?? 0;
+            break;
+          case 'pp':
+            aValue = a.pp ?? 0;
+            bValue = b.pp ?? 0;
+            break;
+          default: // name or id
+            aValue = a[moveSortConfig.key];
+            bValue = b[moveSortConfig.key];
+            break;
+        }
+        
+        // Ensure null/undefined values are treated consistently
+        const direction = moveSortConfig.direction === 'asc' ? 1 : -1;
+        if (aValue === null || aValue === undefined) return direction * 1;
+        if (bValue === null || bValue === undefined) return direction * -1;
+
+
+        if (aValue < bValue) return direction * -1;
+        if (aValue > bValue) return direction * 1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [fullMoves, infoSearchTerm, moveSortConfig]);
+
+  // --- FILTER & SORT ABILITIES ---
   const processedAbilities = useMemo(() => {
     if (!fullAbilities.length) return [];
-    let result = fullAbilities;
+    let result = [...fullAbilities];
+    
+    // Filtering logic for Abilities
     if (infoSearchTerm) {
       const term = infoSearchTerm.toLowerCase();
       if (abilitySearchMode === 'name') {
@@ -727,19 +760,66 @@ export default function App() {
         );
       }
     }
+    
+    // Sorting logic for Abilities (currently simple name sort)
+    if (abilitySortConfig.key === 'name') {
+       result.sort((a, b) => a.name.localeCompare(b.name) * (abilitySortConfig.direction === 'asc' ? 1 : -1));
+    } else if (abilitySortConfig.key === 'id') {
+       result.sort((a, b) => (a.id - b.id) * (abilitySortConfig.direction === 'asc' ? 1 : -1));
+    }
+    
     return result;
-  }, [fullAbilities, infoSearchTerm, abilitySearchMode]);
+  }, [fullAbilities, infoSearchTerm, abilitySearchMode, abilitySortConfig]);
 
-  // Info Pagination
-  const infoData = infoTab === 'moves' ? processedMoves : processedAbilities;
-  const infoTotalPages = Math.ceil(infoData.length / itemsPerPage);
-  const currentInfoData = useMemo(() => {
+  // --- PAGINATION LOGIC ---
+  let dataToPaginate = [];
+  let currentSortConfig = {};
+
+  if (activeTab === 'pokedex') {
+    dataToPaginate = processedDexList;
+    currentSortConfig = dexSortConfig;
+  } else if (activeTab === 'moves') {
+    dataToPaginate = processedMoves;
+    currentSortConfig = moveSortConfig;
+  } else if (activeTab === 'abilities') {
+    dataToPaginate = processedAbilities;
+    currentSortConfig = abilitySortConfig;
+  }
+  
+  const totalPages = Math.ceil(dataToPaginate.length / itemsPerPage);
+  const currentData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return infoData.slice(start, start + itemsPerPage);
-  }, [infoData, currentPage]);
+    return dataToPaginate.slice(start, start + itemsPerPage);
+  }, [dataToPaginate, currentPage]);
 
+  // --- SORT HANDLERS ---
+  const handleSort = (key, tab) => {
+    let direction = 'desc';
+    let currentConfig = tab === 'moves' ? moveSortConfig : (tab === 'abilities' ? abilitySortConfig : dexSortConfig);
 
-  // Calc Logic
+    if (currentConfig.key === key && currentConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setCurrentPage(1); // Reset page on sort
+
+    if (tab === 'moves') {
+      setMoveSortConfig({ key, direction });
+    } else if (tab === 'abilities') {
+      setAbilitySortConfig({ key, direction });
+    } else {
+      setDexSortConfig({ key, direction });
+    }
+  };
+
+  const renderSortIcon = (key, tab) => {
+    let currentConfig = tab === 'moves' ? moveSortConfig : (tab === 'abilities' ? abilitySortConfig : dexSortConfig);
+    if (currentConfig.key !== key) return <ArrowUpDown size={12} className="inline opacity-30 ml-1" />;
+    return currentConfig.direction === 'asc' 
+      ? <ArrowUp size={12} className="inline text-yellow-400 ml-1" />
+      : <ArrowDown size={12} className="inline text-yellow-400 ml-1" />;
+  };
+
+  // Calc Logic (Giữ nguyên)
   const toggleDefensiveType = (t) => {
      if(defensiveTypes.includes(t)) {
         setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
@@ -817,9 +897,11 @@ export default function App() {
              </div>
              Pokedex
           </h1>
+          {/* Cập nhật các nút Tab chính */}
           <div className="flex bg-red-800 rounded p-0.5">
             <button onClick={() => {setActiveTab('pokedex'); setCurrentPage(1);}} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'pokedex' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Dex</button>
-            <button onClick={() => {setActiveTab('info'); setCurrentPage(1);}} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'info' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Info</button>
+            <button onClick={() => {setActiveTab('moves'); setCurrentPage(1); setInfoSearchTerm('');}} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'moves' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Moves</button>
+            <button onClick={() => {setActiveTab('abilities'); setCurrentPage(1); setInfoSearchTerm('');}} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'abilities' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Abilities</button>
             <button onClick={() => setActiveTab('calc')} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'calc' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Calc</button>
           </div>
         </div>
@@ -827,7 +909,7 @@ export default function App() {
 
       <div className="flex-1 overflow-hidden relative w-full max-w-7xl mx-auto bg-gray-900 sm:border-x sm:border-gray-800">
         
-        {/* ================= TAB POKEDEX ================= */}
+        {/* ================= TAB POKEDEX (Giữ nguyên) ================= */}
         {activeTab === 'pokedex' && (
           <div className="flex flex-col h-full animate-fadeIn">
             {/* Search Bar */}
@@ -848,7 +930,7 @@ export default function App() {
                    </div>
                 )}
                 
-                {/* Horizontal Suggestions (No Blocking) */}
+                {/* Horizontal Suggestions */}
                 {searchTerm && searchSuggestions.length > 0 && !searchTerm.startsWith('Related to:') && (
                   <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-700/50">
                     {searchSuggestions.map((item, idx) => (
@@ -897,18 +979,18 @@ export default function App() {
                  <table className="w-full text-left border-collapse">
                    <thead className="bg-gray-800 text-gray-400 text-xs uppercase sticky top-0 z-10 shadow-md">
                      <tr>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>ID {renderSortIcon('id')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('id', 'pokedex')}>ID {renderSortIcon('id', 'pokedex')}</th>
                        <th className="p-3">Icon</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Name {renderSortIcon('name')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('name', 'pokedex')}>Name {renderSortIcon('name', 'pokedex')}</th>
                        <th className="p-3">Types</th>
                        <th className="p-3 hidden sm:table-cell">Abilities</th>
-                       <th className="p-3 cursor-pointer text-yellow-500 hover:text-yellow-300" onClick={() => handleSort('bst')}>BST {renderSortIcon('bst')}</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('hp')}>HP {renderSortIcon('hp')}</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('attack')}>Atk {renderSortIcon('attack')}</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('defense')}>Def {renderSortIcon('defense')}</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-attack')}>SpA {renderSortIcon('special-attack')}</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-defense')}>SpD {renderSortIcon('special-defense')}</th>
-                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('speed')}>Spe {renderSortIcon('speed')}</th>
+                       <th className="p-3 cursor-pointer text-yellow-500 hover:text-yellow-300" onClick={() => handleSort('bst', 'pokedex')}>BST {renderSortIcon('bst', 'pokedex')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('hp', 'pokedex')}>HP {renderSortIcon('hp', 'pokedex')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('attack', 'pokedex')}>Atk {renderSortIcon('attack', 'pokedex')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('defense', 'pokedex')}>Def {renderSortIcon('defense', 'pokedex')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-attack', 'pokedex')}>SpA {renderSortIcon('special-attack', 'pokedex')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('special-defense', 'pokedex')}>SpD {renderSortIcon('special-defense', 'pokedex')}</th>
+                       <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('speed', 'pokedex')}>Spe {renderSortIcon('speed', 'pokedex')}</th>
                      </tr>
                    </thead>
                    <tbody className="text-sm divide-y divide-gray-800">
@@ -952,7 +1034,7 @@ export default function App() {
                {/* Pagination */}
                <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
                   <span className="text-gray-400">
-                     Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, processedList.length)} of {processedList.length}
+                     Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, processedDexList.length)} of {processedDexList.length}
                   </span>
                   <div className="flex gap-1">
                      <button 
@@ -978,76 +1060,50 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB INFO (MOVES & ABILITIES) ================= */}
-        {activeTab === 'info' && (
+        {/* ================= TAB MOVES (Chiêu Thức) ================= */}
+        {activeTab === 'moves' && (
           <div className="flex flex-col h-full animate-fadeIn">
-            {/* Loading Indicator for Info Data */}
-            {!isInfoReady && infoLoading && (
-               <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center text-blue-400">
+            {/* Loading Indicator for Moves Data */}
+            {!isMovesReady && (
+               <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center text-red-400">
                   <Loader2 className="animate-spin mb-2" size={32} />
-                  <div>Loading Move & Ability Data... {infoProgress}%</div>
+                  <div>Loading moves data... {movesLoadProgress}%</div>
                </div>
             )}
 
-            {/* Info Search & Toggle */}
+            {/* Moves Search */}
             <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0">
-               <div className="flex gap-2 mb-3 justify-center">
-                  <button onClick={() => {setInfoTab('moves'); setCurrentPage(1);}} className={`px-4 py-1.5 rounded font-bold text-sm transition-colors flex items-center gap-2 ${infoTab === 'moves' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
-                     <Sword size={14}/> Moves
-                  </button>
-                  <button onClick={() => {setInfoTab('abilities'); setCurrentPage(1);}} className={`px-4 py-1.5 rounded font-bold text-sm transition-colors flex items-center gap-2 ${infoTab === 'abilities' ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
-                     <Zap size={14}/> Abilities
-                  </button>
-               </div>
-
                <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                   <input 
                     type="text" 
-                    placeholder={infoTab === 'moves' ? "Filter Moves by Name, Type, Effect, Power..." : "Filter Abilities by Name or Effect..."} 
+                    placeholder="Filter moves by Name, Type, Effect, Stats..." 
                     className="w-full bg-gray-900 text-white pl-9 pr-4 py-2 text-sm rounded border border-gray-700 focus:border-blue-500 outline-none"
                     value={infoSearchTerm}
                     onChange={(e) => {setInfoSearchTerm(e.target.value); setCurrentPage(1);}}
                   />
-                  {/* Ability Search Mode Toggle */}
-                  {infoTab === 'abilities' && (
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex bg-gray-700 rounded p-0.5">
-                        <button onClick={() => setAbilitySearchMode('name')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'name' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Name</button>
-                        <button onClick={() => setAbilitySearchMode('effect')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'effect' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Effect</button>
-                     </div>
-                  )}
                </div>
             </div>
 
-            {/* INFO LIST */}
+            {/* MOVES LIST */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                <div className="flex-1 overflow-auto">
                  <table className="w-full text-left border-collapse">
                    <thead className="bg-gray-800 text-gray-400 text-xs uppercase sticky top-0 z-10 shadow-md">
-                     {infoTab === 'moves' ? (
                        <tr>
-                         <th className="p-3 w-32">Name</th>
+                         <th className="p-3 cursor-pointer hover:text-white" onClick={() => handleSort('name', 'moves')}>Name {renderSortIcon('name', 'moves')}</th>
                          <th className="p-3 w-20">Type</th>
                          <th className="p-3 w-16">Cat</th>
-                         <th className="p-3 w-16">Pow</th>
-                         <th className="p-3 w-16">Acc</th>
-                         <th className="p-3 w-12">PP</th>
-                         <th className="p-3 w-12">Prio</th>
+                         <th className="p-3 w-16 cursor-pointer hover:text-white" onClick={() => handleSort('power', 'moves')}>Pow {renderSortIcon('power', 'moves')}</th>
+                         <th className="p-3 w-16 cursor-pointer hover:text-white" onClick={() => handleSort('accuracy', 'moves')}>Acc {renderSortIcon('accuracy', 'moves')}</th>
+                         <th className="p-3 w-12 cursor-pointer hover:text-white" onClick={() => handleSort('pp', 'moves')}>PP {renderSortIcon('pp', 'moves')}</th>
+                         <th className="p-3 w-12 cursor-pointer hover:text-white" onClick={() => handleSort('priority', 'moves')}>Prio {renderSortIcon('priority', 'moves')}</th>
                          <th className="p-3">Effect</th>
                        </tr>
-                     ) : (
-                       <tr>
-                         <th className="p-3 w-40">Name</th>
-                         <th className="p-3">Effect</th>
-                         <th className="p-3 w-20">Gen</th>
-                       </tr>
-                     )}
                    </thead>
                    <tbody className="text-sm divide-y divide-gray-800">
-                     {currentInfoData.map((item, idx) => (
+                     {currentData.map((item, idx) => (
                        <tr key={idx} className="hover:bg-gray-800/50 transition-colors">
-                         {infoTab === 'moves' ? (
-                           <>
                              <td className="p-3 font-bold capitalize text-white">{item.name.replace('-', ' ')}</td>
                              <td className="p-3"><TypeBadge type={item.type.name} small/></td>
                              <td className="p-3"><CategoryIcon category={item.damage_class?.name}/></td>
@@ -1056,29 +1112,19 @@ export default function App() {
                              <td className="p-3 text-gray-400">{item.pp}</td>
                              <td className="p-3 text-gray-400">{item.priority}</td>
                              <td className="p-3 text-xs text-gray-400 truncate max-w-xs" title={item.effect_entries?.[0]?.short_effect}>
-                               {item.effect_entries?.[0]?.short_effect || 'No effect description.'}
+                               {item.effect_entries?.find(e => e.language.name === 'en')?.short_effect || 'No effect description.'}
                              </td>
-                           </>
-                         ) : (
-                           <>
-                             <td className="p-3 font-bold capitalize text-white">{item.name.replace('-', ' ')}</td>
-                             <td className="p-3 text-xs text-gray-300">
-                               {item.effect_entries?.find(e => e.language.name === 'en')?.short_effect || 'No description available.'}
-                             </td>
-                             <td className="p-3 text-gray-500 text-xs capitalize">{item.generation?.name.replace('generation-', 'Gen ')}</td>
-                           </>
-                         )}
                        </tr>
                      ))}
                    </tbody>
                  </table>
-                 {currentInfoData.length === 0 && isInfoReady && <div className="text-center py-10 text-gray-500">No results found.</div>}
+                 {currentData.length === 0 && isMovesReady && <div className="text-center py-10 text-gray-500">Không tìm thấy kết quả.</div>}
                </div>
 
-               {/* Pagination Info */}
+               {/* Pagination Moves */}
                <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
                   <span className="text-gray-400">
-                     Page {currentPage} / {infoTotalPages || 1} ({infoData.length} items)
+                     Trang {currentPage} / {totalPages || 1} ({processedMoves.length} chiêu thức)
                   </span>
                   <div className="flex gap-1">
                      <button 
@@ -1089,8 +1135,90 @@ export default function App() {
                        <ArrowLeft size={16} />
                      </button>
                      <button 
-                       disabled={currentPage === infoTotalPages || infoTotalPages === 0}
-                       onClick={() => setCurrentPage(prev => Math.min(infoTotalPages, prev + 1))}
+                       disabled={currentPage === totalPages || totalPages === 0}
+                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                       className="p-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                       <ArrowRight size={16} />
+                     </button>
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
+        
+        {/* ================= TAB ABILITIES (Đặc Tính) ================= */}
+        {activeTab === 'abilities' && (
+          <div className="flex flex-col h-full animate-fadeIn">
+            {/* Loading Indicator for Abilities Data */}
+            {!isAbilitiesReady && (
+               <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center text-yellow-400">
+                  <Loader2 className="animate-spin mb-2" size={32} />
+                  <div>Loanding abilities data... {abilitiesLoadProgress}%</div>
+               </div>
+            )}
+
+            {/* Abilities Search & Toggle */}
+            <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0">
+               <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Filter Abilities by Name or Effect..." 
+                    className="w-full bg-gray-900 text-white pl-9 pr-4 py-2 text-sm rounded border border-gray-700 focus:border-blue-500 outline-none"
+                    value={infoSearchTerm}
+                    onChange={(e) => {setInfoSearchTerm(e.target.value); setCurrentPage(1);}}
+                  />
+                  {/* Ability Search Mode Toggle */}
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex bg-gray-700 rounded p-0.5">
+                     <button onClick={() => setAbilitySearchMode('name')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'name' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Tên</button>
+                     <button onClick={() => setAbilitySearchMode('effect')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'effect' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Hiệu ứng</button>
+                  </div>
+               </div>
+            </div>
+
+            {/* ABILITIES LIST */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+               <div className="flex-1 overflow-auto">
+                 <table className="w-full text-left border-collapse">
+                   <thead className="bg-gray-800 text-gray-400 text-xs uppercase sticky top-0 z-10 shadow-md">
+                       <tr>
+                         <th className="p-3 w-40 cursor-pointer hover:text-white" onClick={() => handleSort('name', 'abilities')}>Name {renderSortIcon('name', 'abilities')}</th>
+                         <th className="p-3">Effect</th>
+                         <th className="p-3 w-20">Gen</th>
+                       </tr>
+                   </thead>
+                   <tbody className="text-sm divide-y divide-gray-800">
+                     {currentData.map((item, idx) => (
+                       <tr key={idx} className="hover:bg-gray-800/50 transition-colors">
+                           <td className="p-3 font-bold capitalize text-white">{item.name.replace('-', ' ')}</td>
+                           <td className="p-3 text-xs text-gray-300">
+                             {item.effect_entries?.find(e => e.language.name === 'en')?.short_effect || 'No description available.'}
+                           </td>
+                           <td className="p-3 text-gray-500 text-xs capitalize">{item.generation?.name.replace('generation-', 'Gen ')}</td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+                 {currentData.length === 0 && isAbilitiesReady && <div className="text-center py-10 text-gray-500">Không tìm thấy kết quả.</div>}
+               </div>
+
+               {/* Pagination Abilities */}
+               <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
+                  <span className="text-gray-400">
+                     Trang {currentPage} / {totalPages || 1} ({processedAbilities.length} đặc tính)
+                  </span>
+                  <div className="flex gap-1">
+                     <button 
+                       disabled={currentPage === 1}
+                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                       className="p-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                       <ArrowLeft size={16} />
+                     </button>
+                     <button 
+                       disabled={currentPage === totalPages || totalPages === 0}
+                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                        className="p-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                      >
                        <ArrowRight size={16} />
@@ -1101,7 +1229,8 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB CALCULATOR ================= */}
+
+        {/* ================= TAB CALCULATOR (Giữ nguyên) ================= */}
         {activeTab === 'calc' && (
           <div className="h-full overflow-y-auto p-4 bg-gray-100 text-gray-800 animate-fadeIn">
             {/* Defensive */}
