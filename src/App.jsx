@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, Zap, Shield, Sword, Activity, ChevronRight, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Search, X, Zap, Shield, Sword, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
 
 // ==========================================
 // PHẦN 1: CẤU HÌNH & DỮ LIỆU CỐ ĐỊNH
@@ -17,6 +17,7 @@ const TYPE_COLORS = {
   ground: '#E2BF65', flying: '#A98FF3', psychic: '#F95587', bug: '#A6B91A',
   rock: '#B6A136', ghost: '#735797', dragon: '#6F35FC', steel: '#B7B7CE',
   dark: '#705746', fairy: '#D685AD',
+  // Capitalized for consistency
   Normal: '#A8A77A', Fire: '#EE8130', Water: '#6390F0', Grass: '#7AC74C',
   Electric: '#F7D02C', Ice: '#96D9D6', Fighting: '#C22E28', Poison: '#A33EA1',
   Ground: '#E2BF65', Flying: '#A98FF3', Psychic: '#F95587', Bug: '#A6B91A',
@@ -63,12 +64,9 @@ const ABILITY_IMMUNITIES = {
   'wonder-guard': { special: 'wonder_guard' } 
 };
 
-// Helper: Viết hoa chữ cái đầu (quan trọng để khớp key trong bảng Type)
 const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
-// Hàm tính tương khắc thường
 const getMultiplier = (attacker, defender) => {
-  // Đảm bảo defender được viết hoa đúng chuẩn (ví dụ: 'fire' -> 'Fire')
   const def = capitalize(defender);
   if (MATCHUPS[attacker] && MATCHUPS[attacker][def] !== undefined) {
     return MATCHUPS[attacker][def];
@@ -76,13 +74,12 @@ const getMultiplier = (attacker, defender) => {
   return 1;
 };
 
-// Hàm tính tương khắc Inverse (Đảo ngược)
 const getInverseMultiplier = (attacker, defender) => {
   const normal = getMultiplier(attacker, defender);
-  if (normal === 0) return 2;    // Immune -> Super Effective
-  if (normal === 0.5) return 2;  // Not very -> Super Effective
-  if (normal === 2) return 0.5;  // Super -> Not very
-  return 1;                      // Neutral -> Neutral
+  if (normal === 0) return 2;    
+  if (normal === 0.5) return 2;  
+  if (normal === 2) return 0.5;  
+  return 1;                      
 };
 
 // ==========================================
@@ -117,7 +114,6 @@ const StatBar = ({ label, value, max = 255 }) => {
   );
 };
 
-// Component Moves trong Modal
 const MovesTable = ({ moves }) => {
   const [activeFilter, setActiveFilter] = useState('level-up');
   const [moveDetails, setMoveDetails] = useState({});
@@ -223,7 +219,6 @@ const MovesTable = ({ moves }) => {
   );
 };
 
-// Component Type Defenses Box
 const TypeEffectivenessBox = ({ types, abilities }) => {
   const effectiveness = useMemo(() => {
     const results = {};
@@ -232,7 +227,6 @@ const TypeEffectivenessBox = ({ types, abilities }) => {
     TYPES.forEach(attacker => {
       let mult = 1;
       types.forEach(t => {
-        // FIX: Viết hoa tên hệ để khớp với bảng MATCHUPS
         mult *= getMultiplier(attacker, t.type.name); 
       });
 
@@ -276,27 +270,22 @@ const TypeEffectivenessBox = ({ types, abilities }) => {
 
   return (
     <div className="animate-fadeIn">
-      {/* 4x & 2x */}
       <div className="space-y-1 mb-3">
         {renderGroup(4, '4x', 'text-white', 'bg-red-600')}
         {renderGroup(2, '2x', 'text-white', 'bg-red-500')}
       </div>
-      
-      {/* Resistance */}
       <div className="space-y-1">
         {renderGroup(0.5, '0.5x', 'text-white', 'bg-green-600')}
         {renderGroup(0.25, '0.25x', 'text-white', 'bg-green-700')}
         {renderGroup(0, '0x', 'text-gray-300', 'bg-gray-700')}
       </div>
-      
       {Object.values(grouped).flat().length === 0 && <div className="text-gray-500 text-sm italic">No special effectiveness data.</div>}
     </div>
   );
 };
 
-// Modal Chi Tiết
 const PokemonDetailModal = ({ pokemon, onClose }) => {
-  const [viewMode, setViewMode] = useState('stats'); // 'stats' | 'defenses'
+  const [viewMode, setViewMode] = useState('stats');
 
   if (!pokemon) return null;
   const artwork = pokemon.sprites.other['official-artwork'].front_default || pokemon.sprites.front_default;
@@ -306,7 +295,6 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-sm animate-fadeIn">
       <div className="bg-gray-800 w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden border border-gray-700 max-h-[95vh] flex flex-col">
-        {/* Header */}
         <div className="bg-gray-900 p-3 flex justify-between items-center border-b border-gray-700 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-gray-500 font-mono font-bold text-lg">
@@ -319,10 +307,7 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
 
         <div className="overflow-y-auto p-4 sm:p-6 custom-scrollbar flex-1">
           <div className="flex flex-col gap-6">
-            
-            {/* Top Section: Info & Toggleable Stats Box */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column: Image, Info, Abilities */}
               <div className="flex flex-col items-center">
                 <div className="relative w-48 h-48 mb-4">
                    <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-full blur-2xl"></div>
@@ -356,12 +341,10 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
                 </div>
               </div>
 
-              {/* Right Column: Toggleable Stats / Defenses Box */}
               <div 
                 className="bg-gray-900/50 border border-gray-700 rounded-xl p-5 cursor-pointer hover:bg-gray-900 transition-all shadow-inner relative group h-fit"
                 onClick={() => setViewMode(prev => prev === 'stats' ? 'defenses' : 'stats')}
               >
-                {/* Header with Switch Icon */}
                 <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
                   <h3 className="text-white font-bold text-lg flex items-center gap-2">
                     {viewMode === 'stats' ? <><BarChart2 size={20} className="text-blue-400" /> Base Stats</> : <><Shield size={20} className="text-green-400" /> Type Defenses</>}
@@ -371,7 +354,6 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
                   </div>
                 </div>
 
-                {/* Content */}
                 <div className="min-h-[220px]">
                   {viewMode === 'stats' ? (
                     <div className="animate-fadeIn space-y-3">
@@ -393,7 +375,6 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
               </div>
             </div>
 
-            {/* Bottom Section: Moves */}
             <div>
               <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-700 pb-2">
                 <Sword size={20} className="text-red-400" /> Move Pool
@@ -409,26 +390,28 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
 };
 
 // ==========================================
-// PHẦN 3: LOGIC CHÍNH APP (UPDATED)
+// PHẦN 3: LOGIC CHÍNH APP (UPDATED MULTI-TAG)
 // ==========================================
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('pokedex');
 
-  // --- States Calculator ---
+  // Calculator States
   const [defensiveTypes, setDefensiveTypes] = useState([]);
   const [offensiveTypes, setOffensiveTypes] = useState([]);
   const [hoverInfo, setHoverInfo] = useState(null);
 
-  // --- States Pokedex ---
+  // Pokedex States
   const [fullPokemonData, setFullPokemonData] = useState([]); 
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isDataReady, setIsDataReady] = useState(false);
   
+  // New Search Logic: Tags
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTags, setActiveTags] = useState([]); // List of { type, value, label }
+  
   const [selectedPokemon, setSelectedPokemon] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
-  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
@@ -436,21 +419,18 @@ export default function App() {
   const [allAbilities, setAllAbilities] = useState([]);
   const [allMoves, setAllMoves] = useState([]);
 
-  // Fetch Data (Updated for Mega/Gmax/Forms)
+  // Fetch Data (Keep existing optimized logic)
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        // Tăng giới hạn lên 2000 để lấy hết Forms, Megas, Gmax (hiện tại có khoảng 1300 mục)
         const listRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=2000');
         const listData = await listRes.json();
         const rawList = listData.results;
 
-        // Phân loại: Base (<= 10000) và Forms (> 10000)
         const bases = [];
         const forms = [];
         
         rawList.forEach(p => {
-           // Lấy ID từ URL (vd: .../pokemon/1/)
            const id = parseInt(p.url.split('/').filter(Boolean).pop());
            if (id <= 10000) {
              bases.push({ ...p, id, variations: [] });
@@ -459,66 +439,47 @@ export default function App() {
            }
         });
 
-        // Sắp xếp Base theo ID
         bases.sort((a,b) => a.id - b.id);
 
-        // Gom nhóm Forms vào Bases
-        // Logic: Tìm Base có tên dài nhất mà là prefix của tên Form
         forms.forEach(f => {
-           // Tìm các base khớp tên (form name bắt đầu bằng base name)
            const matches = bases.filter(b => f.name.startsWith(b.name));
-           // Chọn base có tên dài nhất để chính xác nhất
            matches.sort((a,b) => b.name.length - a.name.length);
-           
            if (matches.length > 0) {
               const match = matches[0];
-              // Thêm thuộc tính displayId để hiển thị giống base
               match.variations.push({ ...f, displayId: match.id }); 
            } else {
-              // Trường hợp hiếm (form độc lập), thêm vào cuối danh sách base
               bases.push({ ...f, variations: [], displayId: f.id }); 
            }
         });
 
-        // NEW STEP: Sắp xếp variations trước khi flatten
         bases.forEach(b => {
             if (b.variations && b.variations.length > 0) {
                 b.variations.sort((v1, v2) => {
                     const getScore = (n) => {
-                        // Priority 1: Regional Forms
                         if (n.includes('-alola') || n.includes('-galar') || n.includes('-hisui') || n.includes('-paldea')) return 1;
-                        // Priority 2: Mega Forms
                         if (n.includes('-mega')) return 2;
-                        // Priority 3: Others (Cosplay, Cap, etc.)
-                        if (n.includes('-partner') || n.includes('-cap') || n.includes('-cosplay') || n.includes('-origin') || n.includes('-diancie') || n.includes('-eternal')) return 3;
-                        // Priority 4: G-Max (Last)
                         if (n.includes('-gmax')) return 4; 
-                        return 5; // Fallback
+                        return 3;
                     };
                     const s1 = getScore(v1.name);
                     const s2 = getScore(v2.name);
                     if (s1 !== s2) return s1 - s2;
-                    return v1.name.localeCompare(v2.name); // Tie breaker
+                    return v1.name.localeCompare(v2.name); 
                 });
             }
         });
 
-        // Làm phẳng danh sách để fetch
         const sortedList = [];
         bases.forEach(b => {
            sortedList.push(b);
-           // Thêm các biến thể ngay sau base
            if (b.variations) {
              b.variations.forEach(v => sortedList.push(v));
            }
         });
 
-        // Batch Fetch Details
         const BATCH_SIZE = 50;
         let loadedCount = 0;
-        let finalData = [];
 
-        // Fetch Search Helpers (nhẹ)
         fetch('https://pokeapi.co/api/v2/ability?limit=1000').then(r=>r.json()).then(d=>setAllAbilities(d.results));
         fetch('https://pokeapi.co/api/v2/move?limit=1000').then(r=>r.json()).then(d=>setAllMoves(d.results));
 
@@ -529,7 +490,6 @@ export default function App() {
               try {
                 const res = await fetch(p.url);
                 const data = await res.json();
-                // Gán displayId nếu có (từ logic form ở trên)
                 if (p.displayId) data.displayId = p.displayId;
                 return data;
               } catch { return null; }
@@ -537,7 +497,6 @@ export default function App() {
           );
           
           const validDetails = batchDetails.filter(d => d !== null);
-          finalData = [...finalData, ...validDetails];
           loadedCount += validDetails.length;
           setLoadingProgress(Math.floor((loadedCount / sortedList.length) * 100));
           setFullPokemonData(prev => [...prev, ...validDetails]);
@@ -549,85 +508,94 @@ export default function App() {
     fetchAllData();
   }, []);
 
-  // New Suggestion Logic: show suggestions only when input changes
+  // Updated Suggestion Logic
   useEffect(() => {
-    if (!searchTerm || searchTerm.startsWith('Related to:')) {
+    if (!searchTerm) {
       setSearchSuggestions([]);
       return;
     }
     const term = searchTerm.toLowerCase();
     const suggestions = [];
     
-    // 1. Check for Pokemon match
+    // 1. Related To Suggestion (Base matches)
     const pokemonMatch = fullPokemonData.find(p => p.name.toLowerCase() === term);
-    
-    // Suggest "Related to" only if the name is an exact base match
     if (pokemonMatch && pokemonMatch.id <= 10000) {
-      suggestions.push({ type: 'Related to', name: pokemonMatch.name });
+      suggestions.push({ type: 'Related to', name: pokemonMatch.name, value: pokemonMatch.name });
     }
 
-    // 2. Ability and Move Suggestions
-    allAbilities.forEach(a => { if (a.name.includes(term)) suggestions.push({ type: 'Ability', name: a.name, url: a.url }); });
-    allMoves.forEach(m => { if (m.name.includes(term)) suggestions.push({ type: 'Move', name: m.name, url: m.url }); });
+    // 2. Abilities
+    allAbilities.forEach(a => { if (a.name.includes(term)) suggestions.push({ type: 'Ability', name: a.name, value: a.name }); });
     
-    // 3. Pokemon Name Suggestions
+    // 3. Moves
+    allMoves.forEach(m => { if (m.name.includes(term)) suggestions.push({ type: 'Move', name: m.name, value: m.name }); });
+    
+    // 4. Pokemon Name (For simple filtering)
     fullPokemonData.forEach(p => { 
-      // Only suggest base forms for name search unless it's a specific form search
-      if ((p.name.includes(term) && p.id <= 10000) || (p.name.includes(term) && term.includes('-'))) {
-        if (!suggestions.some(s => s.name === p.name)) {
-          suggestions.push({ type: 'Pokemon', name: p.name });
+      // Only suggest unique names that match term
+      if (p.name.includes(term)) {
+        if (!suggestions.some(s => s.name === p.name && s.type === 'Pokemon')) {
+          suggestions.push({ type: 'Pokemon', name: p.name, value: p.name });
         }
       }
     });
 
-    setSearchSuggestions(suggestions.slice(0, 8));
+    // Limit suggestions to prevent lag
+    setSearchSuggestions(suggestions.slice(0, 10));
   }, [searchTerm, fullPokemonData, allAbilities, allMoves]);
 
-  const handleSelectSuggestion = (item) => {
-    if (item.type === 'Related to') {
-      setSearchTerm(`Related to: ${item.name.replace('-', ' ')}`);
-    } else {
-      setSearchTerm(`${item.type}: ${item.name.replace('-', ' ')}`);
+  // Handle Adding Tags
+  const handleAddTag = (item) => {
+    const newTag = {
+      type: item.type,
+      value: item.value,
+      label: `${item.type}: ${item.name.replace(/-/g, ' ')}`
+    };
+    
+    // Check duplicate
+    if (!activeTags.some(t => t.type === newTag.type && t.value === newTag.value)) {
+      setActiveTags([...activeTags, newTag]);
     }
+    
+    setSearchTerm(''); // Clear input
+    setSearchSuggestions([]); // Clear suggestions
     setCurrentPage(1);
-    // Suggestions will clear via the useEffect hook when searchTerm changes to a tagged format
   };
 
+  const removeTag = (indexToRemove) => {
+    setActiveTags(activeTags.filter((_, idx) => idx !== indexToRemove));
+    setCurrentPage(1);
+  };
+
+  // Multi-Tag Filter Logic
   const processedList = useMemo(() => {
     let result = [...fullPokemonData];
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
 
-      // NEW LOGIC FOR "Related to: [PokemonName]"
-      if (term.startsWith('related to:')) {
-        const baseName = term.split(':')[1].trim().toLowerCase().replace(/ /g, '-');
-        
-        // 1. Find the base Pokemon
-        const basePokemon = fullPokemonData.find(p => p.name.toLowerCase() === baseName && p.id <= 10000);
-        
-        if (basePokemon) {
-            const baseId = basePokemon.id;
-            // 2. Filter all variations that share the same displayId (which is the baseId)
-            result = result.filter(p => (p.displayId || p.id) === baseId);
-        } else {
-            // If the base Pokemon is not found (e.g., misspelled), show empty list
-            result = []; 
-        }
-      } 
-      // EXISTING TAG LOGIC
-      else if (term.startsWith('ability:')) {
-         const abilityName = term.split(':')[1].trim().toLowerCase().replace(/ /g, '-');
-         result = result.filter(p => p.abilities.some(a => a.ability.name === abilityName));
-      } else if (term.startsWith('move:')) {
-         const moveName = term.split(':')[1].trim().toLowerCase().replace(/ /g, '-');
-         result = result.filter(p => p.moves.some(m => m.move.name === moveName));
-      } 
-      // REGULAR NAME/ID SEARCH
-      else {
-         result = result.filter(p => p.name.includes(term) || String(p.id).includes(term));
-      }
+    // Filter by all active tags (AND logic)
+    if (activeTags.length > 0) {
+      result = result.filter(p => {
+        return activeTags.every(tag => {
+          if (tag.type === 'Pokemon') {
+             // Name contains search term
+             return p.name.includes(tag.value);
+          }
+          if (tag.type === 'Ability') {
+             return p.abilities.some(a => a.ability.name === tag.value);
+          }
+          if (tag.type === 'Move') {
+             return p.moves.some(m => m.move.name === tag.value);
+          }
+          if (tag.type === 'Related to') {
+             const baseName = tag.value;
+             const basePokemon = fullPokemonData.find(bp => bp.name === baseName && bp.id <= 10000);
+             if (!basePokemon) return false;
+             return (p.displayId || p.id) === basePokemon.id;
+          }
+          return true;
+        });
+      });
     }
 
+    // Sort Logic
     if (sortConfig.key) {
       result.sort((a, b) => {
         let aValue, bValue;
@@ -648,7 +616,7 @@ export default function App() {
       });
     }
     return result;
-  }, [fullPokemonData, searchTerm, sortConfig]);
+  }, [fullPokemonData, activeTags, sortConfig]);
 
   const totalPages = Math.ceil(processedList.length / itemsPerPage);
   const currentData = useMemo(() => {
@@ -671,7 +639,7 @@ export default function App() {
       : <ArrowDown size={12} className="inline text-yellow-400 ml-1" />;
   };
 
-  // Calc Logic Fixes: 
+  // Calc Logic
   const toggleDefensiveType = (t) => {
      if(defensiveTypes.includes(t)) {
         setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
@@ -684,22 +652,17 @@ export default function App() {
      else setOffensiveTypes([...offensiveTypes,t]);
   };
   
-  // Defensive Calculation for N types
   const defensiveResults = useMemo(() => {
     if (defensiveTypes.length === 0) return null;
     const results = {}; 
-    
     TYPES.forEach(attacker => {
       let total = 1;
       defensiveTypes.forEach(def => {
          total *= getMultiplier(attacker, def);
       });
-      
-      // Group by multiplier
       if (!results[total]) results[total] = [];
       results[total].push(attacker);
     });
-    
     return results;
   }, [defensiveTypes]);
 
@@ -722,13 +685,11 @@ export default function App() {
   const ResultRow = ({ multiplier, typesList, label }) => {
     if (!typesList || typesList.length === 0) return null;
     let colorStyle = { color: '#374151', bg: '#F3F4F6' };
-    
-    // Logic màu sắc linh hoạt hơn cho nhiều hệ số
-    if (multiplier >= 4) colorStyle = { color: '#991B1B', bg: '#FEE2E2' }; // Đỏ đậm (Nguy hiểm/Mạnh)
+    if (multiplier >= 4) colorStyle = { color: '#991B1B', bg: '#FEE2E2' };
     else if (multiplier >= 2) colorStyle = { color: '#9D174D', bg: '#FCE7F3' };
     else if (multiplier === 1) colorStyle = { color: '#374151', bg: '#F3F4F6' };
     else if (multiplier === 0) colorStyle = { color: '#1F2937', bg: '#E5E7EB' };
-    else if (multiplier <= 0.25) colorStyle = { color: '#14532D', bg: '#F0FDF4' }; // Xanh đậm (Kháng tốt)
+    else if (multiplier <= 0.25) colorStyle = { color: '#14532D', bg: '#F0FDF4' };
     else if (multiplier <= 0.5) colorStyle = { color: '#166534', bg: '#DCFCE7' };
 
     return (
@@ -736,11 +697,7 @@ export default function App() {
         <div className="flex items-center gap-2 min-w-[200px]"> 
           <span className="font-bold text-lg" style={{color: colorStyle.color}}>{multiplier}x</span>
           <span className="text-xs font-medium opacity-80">{label}</span>
-          
-          <span className="ml-1 text-[11px] text-gray-500/80 font-normal">
-            ({typesList.length} types)
-          </span>
-
+          <span className="ml-1 text-[11px] text-gray-500/80 font-normal">({typesList.length} types)</span>
         </div>
         <div className="flex flex-wrap gap-1">
           {typesList.map(t => <span key={t} style={{backgroundColor: TYPE_COLORS[t]}} className="text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">{t}</span>)}
@@ -751,14 +708,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-0 flex flex-col h-screen overflow-hidden">
-      {/* HEADER */}
+      {/* HEADER - Updated Title to Pokedex */}
       <header className="bg-red-700 text-white p-2 shadow-lg z-20 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <h1 className="text-lg font-bold flex items-center gap-2">
              <div className="w-6 h-6 bg-white rounded-full border-4 border-gray-800 flex items-center justify-center">
                <div className="w-1.5 h-1.5 bg-gray-800 rounded-full animate-pulse"></div>
              </div>
-             PokeRogue Dex
+             Pokedex
           </h1>
           <div className="flex bg-red-800 rounded p-0.5">
             <button onClick={() => setActiveTab('pokedex')} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'pokedex' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Dex</button>
@@ -767,19 +724,18 @@ export default function App() {
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
       <div className="flex-1 overflow-hidden relative w-full max-w-7xl mx-auto bg-gray-900 sm:border-x sm:border-gray-800">
         
-        {/* ================= TAB POKEDEX (TABLE LIST) ================= */}
+        {/* ================= TAB POKEDEX ================= */}
         {activeTab === 'pokedex' && (
           <div className="flex flex-col h-full animate-fadeIn">
-            {/* Search Bar & Suggestions (UPDATED) */}
+            {/* Search Bar */}
             <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0 relative z-30">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                 <input 
                   type="text" 
-                  placeholder="Search Pokemon, Move, Ability..." 
+                  placeholder="Type to search Pokemon, Ability, Move..." 
                   className="w-full bg-gray-900 text-white pl-9 pr-4 py-2 text-sm rounded border border-gray-700 focus:border-blue-500 outline-none"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -792,32 +748,47 @@ export default function App() {
                 )}
               </div>
               
-              {/* Horizontal Suggestions Display (UPDATED) */}
-              {(searchTerm && searchSuggestions.length > 0 && !searchTerm.startsWith('Related to:')) && (
+              {/* === FIX: Suggestions List as Horizontal Tags === */}
+              {searchTerm && searchSuggestions.length > 0 && !searchTerm.startsWith('Related to:') && (
                 <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-700/50">
                   {searchSuggestions.map((item, idx) => (
                     <div 
                       key={idx} 
-                      className="cursor-pointer text-xs font-medium px-2 py-1 rounded-full border transition-all flex items-center gap-1 shadow-md"
+                      className="cursor-pointer text-xs font-medium px-2 py-1 rounded-full border border-gray-600 transition-all flex items-center gap-1 shadow-md hover:scale-105"
                       style={{
                         backgroundColor: item.type === 'Related to' ? '#F87171' : item.type === 'Pokemon' ? '#6D28D9' : item.type === 'Ability' ? '#FBBF24' : '#3B82F6',
-                        color: 'white'
+                        color: 'white',
+                        borderColor: 'transparent'
                       }}
-                      onClick={() => handleSelectSuggestion(item)}
+                      onClick={() => handleAddTag(item)}
                     >
-                      {item.type}: <span className="capitalize font-bold">{item.name.replace('-', ' ')}</span>
+                      <span className="opacity-80 font-bold">{item.type}:</span>
+                      <span className="capitalize">{item.name.replace('-', ' ')}</span>
                     </div>
                   ))}
                 </div>
               )}
-              
-              {/* Active Filter Display (UPDATED) */}
-              {searchTerm.startsWith('Related to:') || searchTerm.startsWith('Ability:') || searchTerm.startsWith('Move:') ? (
-                 <div className="mt-2 text-sm text-gray-400 pt-2 border-t border-gray-700/50">
-                   <span className="font-bold text-red-400">Filter Active:</span> <span className="text-white">{searchTerm}</span>
-                   <button onClick={() => setSearchTerm('')} className="ml-2 text-blue-400 hover:text-blue-300 underline text-xs">Clear Filter</button>
-                 </div>
-              ) : null}
+              {/* ============================================== */}
+
+              {/* Active Tags Display */}
+              {activeTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {activeTags.map((tag, idx) => (
+                    <div key={idx} className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-bold text-white border ${
+                      tag.type === 'Related to' ? 'bg-orange-600/20 border-orange-500' :
+                      tag.type === 'Pokemon' ? 'bg-red-600/20 border-red-500' :
+                      tag.type === 'Ability' ? 'bg-yellow-600/20 border-yellow-500' :
+                      'bg-blue-600/20 border-blue-500'
+                    }`}>
+                      <span>{tag.label}</span>
+                      <button onClick={() => removeTag(idx)} className="hover:text-red-300"><X size={12}/></button>
+                    </div>
+                  ))}
+                  {activeTags.length > 0 && (
+                    <button onClick={() => setActiveTags([])} className="text-xs text-gray-400 hover:text-white underline ml-2">Clear All</button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* TABLE LIST */}
@@ -907,17 +878,14 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB CALCULATOR ================= */}
+        {/* TAB CALCULATOR */}
         {activeTab === 'calc' && (
           <div className="h-full overflow-y-auto p-4 bg-gray-100 text-gray-800 animate-fadeIn">
-            
-            {/* 1. Defensive Analysis (Unlimited Types) */}
+            {/* Defensive */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
                 <Shield size={20} className="text-blue-500"/> Defensive Analysis (Multi-Type)
               </h2>
-              
-              {/* Selected Types */}
               <div className="flex flex-wrap gap-2 mb-4 min-h-[40px]">
                 {defensiveTypes.map(t => (
                   <button key={t} onClick={() => toggleDefensiveType(t)} className="flex items-center gap-1 bg-gray-800 text-white px-3 py-1 rounded-full text-sm hover:bg-black transition-colors animate-fadeIn">
@@ -926,8 +894,6 @@ export default function App() {
                 ))}
                 {defensiveTypes.length === 0 && <span className="text-sm text-gray-400 italic py-1">Select types below (Unlimited)...</span>}
               </div>
-
-              {/* Type Buttons */}
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
                 {TYPES.map(type => (
                   <button key={type} onClick={() => toggleDefensiveType(type)} style={{borderColor: TYPE_COLORS[type], color: defensiveTypes.includes(type) ? 'white' : TYPE_COLORS[type], backgroundColor: defensiveTypes.includes(type) ? TYPE_COLORS[type] : 'transparent'}} className="border-2 font-bold text-xs py-1 px-2 rounded hover:opacity-80 transition-all uppercase">
@@ -935,27 +901,17 @@ export default function App() {
                   </button>
                 ))}
               </div>
-
-              {/* Results */}
               {defensiveResults && (
                 <div className="mt-4 border-t pt-4">
                   {Object.keys(defensiveResults).sort((a,b) => parseFloat(b) - parseFloat(a)).map(multKey => {
                      const mult = parseFloat(multKey);
-                     if (mult === 1) return null; // Hide 1x for cleaner view
-                     return (
-                        <ResultRow 
-                           key={multKey}
-                           multiplier={mult} 
-                           typesList={defensiveResults[multKey]} 
-                           label={mult > 1 ? `Takes ${mult}x from` : (mult === 0 ? "Immune to" : `Resists (${mult}x)`)} 
-                        />
-                     )
+                     if (mult === 1) return null;
+                     return <ResultRow key={multKey} multiplier={mult} typesList={defensiveResults[multKey]} label={mult > 1 ? `Takes ${mult}x from` : (mult === 0 ? "Immune to" : `Resists (${mult}x)`)} />;
                   })}
                 </div>
               )}
             </div>
-
-            {/* 2. Offensive Coverage */}
+            {/* Offensive */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
                 <Sword size={20} className="text-red-500"/> Offensive Coverage
@@ -975,8 +931,6 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              
-              {/* Detailed Breakdown 4x, 2x, 1x... */}
               {offensiveResults && (
                  <div className="mt-4 border-t pt-4">
                     <ResultRow multiplier={4} typesList={offensiveResults[4]} label="Super Effective (4x)" />
@@ -988,18 +942,14 @@ export default function App() {
                  </div>
               )}
             </div>
-            
-            {/* 3. Type Chart Reference (Larger & Centered) */}
+             {/* Chart */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-x-auto relative mb-4 flex flex-col items-center">
                <h2 className="text-xl font-bold mb-4 text-gray-700 w-full text-left max-w-4xl">Type Chart Reference</h2>
-               
-               {/* Tooltip */}
                {hoverInfo && (
                   <div className="fixed z-50 bg-gray-800 text-white text-xs p-2 rounded shadow-lg pointer-events-none" style={{left: hoverInfo.x + 10, top: hoverInfo.y + 10}}>
                      {hoverInfo.attacker} → {hoverInfo.defender}: <span className="font-bold text-yellow-400">{hoverInfo.val}x</span>
                   </div>
                )}
-
                <div className="inline-block">
                   <div className="flex">
                     <div className="w-9 h-9 mr-1"></div>
@@ -1027,16 +977,12 @@ export default function App() {
                   ))}
                </div>
             </div>
-
-            {/* 4. Inverse Type Chart (New Feature) */}
+            {/* Inverse Chart */}
             <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 overflow-x-auto relative flex flex-col items-center">
                <h2 className="text-xl font-bold mb-2 text-white w-full text-left max-w-4xl flex items-center gap-2">
                  <RefreshCw size={24} className="text-purple-400"/> Inverse Battle Chart
                </h2>
-               <p className="text-gray-400 text-sm mb-4 w-full text-left max-w-4xl">
-                 In Inverse Battles: 0x & 0.5x becomes 2x. 2x becomes 0.5x. 1x stays 1x.
-               </p>
-
+               <p className="text-gray-400 text-sm mb-4 w-full text-left max-w-4xl">In Inverse Battles: 0x & 0.5x becomes 2x. 2x becomes 0.5x. 1x stays 1x.</p>
                <div className="inline-block">
                   <div className="flex">
                     <div className="w-9 h-9 mr-1"></div>
@@ -1047,11 +993,9 @@ export default function App() {
                        <div className="w-9 h-9 mr-1 flex items-center justify-center"><span className="text-[10px] font-bold text-white w-full h-full flex items-center justify-center rounded" style={{backgroundColor: TYPE_COLORS[atk]}}>{atk.substring(0,3)}</span></div>
                        {TYPES.map(def => {
                          const val = getInverseMultiplier(atk, def);
-                         let bg = '#374151'; // Default gray for 1x
-                         let text = '1';
-                         if(val === 2) { bg = '#4ade80'; text = '2'; } // Green for Super Effective
-                         if(val === 0.5) { bg = '#f87171'; text = '½'; } // Red for Not Very Effective
-                         
+                         let bg = '#374151'; let text = '1';
+                         if(val === 2) { bg = '#4ade80'; text = '2'; }
+                         if(val === 0.5) { bg = '#f87171'; text = '½'; }
                          return (
                            <div key={def} 
                                 className="w-9 h-9 mr-1 flex items-center justify-center text-[11px] font-bold cursor-pointer hover:border border-white transition-colors" 
@@ -1067,7 +1011,6 @@ export default function App() {
                   ))}
                </div>
             </div>
-
           </div>
         )}
       </div>
