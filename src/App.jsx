@@ -1171,8 +1171,8 @@ export default function App() {
                   />
                   {/* Ability Search Mode Toggle */}
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex bg-gray-700 rounded p-0.5">
-                     <button onClick={() => setAbilitySearchMode('name')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'name' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Tên</button>
-                     <button onClick={() => setAbilitySearchMode('effect')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'effect' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Hiệu ứng</button>
+                     <button onClick={() => setAbilitySearchMode('name')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'name' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Name</button>
+                     <button onClick={() => setAbilitySearchMode('effect')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'effect' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Effect</button>
                   </div>
                </div>
             </div>
