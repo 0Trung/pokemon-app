@@ -4,12 +4,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "electron-main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist"
+    "lint": "eslint .",
+    "deploy": "gh-pages -d dist",
+    "electron": "electron .",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "lucide-react": "^0.556.0",
@@ -22,6 +25,8 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.22",
+    "electron": "^41.1.0",
+    "electron-builder": "^24.13.3",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -30,5 +35,16 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
     "vite": "^7.2.4"
+  },
+  "build": {
+    "appId": "com.pokemon.app",
+    "productName": "Pokemon App",
+    "files": [
+      "dist/**/*",
+      "electron-main.cjs"
+    ],
+    "win": {
+      "target": "nsis"
+    }
   }
 }

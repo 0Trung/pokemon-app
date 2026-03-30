@@ -5,5 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   // Thêm dòng 'base' này để Vite biết ứng dụng đang được host
   // trong thư mục con /pokemon-app/ trên GitHub Pages
+  base: './',
   plugins: [react()],
 })
