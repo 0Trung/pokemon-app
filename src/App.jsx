@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X, Zap, Shield, Sword, BarChart2, ArrowUpDown, ArrowUp, ArrowDown, Loader2, RefreshCw, ArrowLeft, ArrowRight, Info, BookOpen, Target, Flame, Circle } from 'lucide-react';
+import HomePage from './HomePage';
 
 // ==========================================
 // PHẦN 1: CẤU HÌNH & DỮ LIỆU CỐ ĐỊNH (Không đổi)
@@ -230,8 +231,6 @@ const MovesTable = ({ moves }) => {
   );
 };
 
-// ... (other helper components like TypeEffectivenessBox and PokemonDetailModal remain the same)
-
 const TypeEffectivenessBox = ({ types, abilities }) => {
   const effectiveness = useMemo(() => {
     const results = {};
@@ -407,8 +406,8 @@ const PokemonDetailModal = ({ pokemon, onClose }) => {
 // ==========================================
 
 export default function App() {
-  // Thay đổi: activeTab giờ bao gồm 'moves' và 'abilities'
   const [activeTab, setActiveTab] = useState('pokedex'); 
+  const [showHome, setShowHome] = useState(true);
 
   // Calculator States
   const [defensiveTypes, setDefensiveTypes] = useState([]);
@@ -423,8 +422,8 @@ export default function App() {
   // Moves and Abilities Data States
   const [fullMoves, setFullMoves] = useState([]);
   const [fullAbilities, setFullAbilities] = useState([]);
-  const [isMovesReady, setIsMovesReady] = useState(false); // Trạng thái sẵn sàng cho Moves
-  const [isAbilitiesReady, setIsAbilitiesReady] = useState(false); // Trạng thái sẵn sàng cho Abilities
+  const [isMovesReady, setIsMovesReady] = useState(false);
+  const [isAbilitiesReady, setIsAbilitiesReady] = useState(false);
   const [movesLoadProgress, setMovesLoadProgress] = useState(0);
   const [abilitiesLoadProgress, setAbilitiesLoadProgress] = useState(0);
 
@@ -435,19 +434,24 @@ export default function App() {
   
   // Info Search & Sort Logic
   const [infoSearchTerm, setInfoSearchTerm] = useState('');
-  const [abilitySearchMode, setAbilitySearchMode] = useState('name'); // 'name' | 'effect'
+  const [abilitySearchMode, setAbilitySearchMode] = useState('name');
 
   const [selectedPokemon, setSelectedPokemon] = useState(null);
   const [dexSortConfig, setDexSortConfig] = useState({ key: 'id', direction: 'asc' });
-  const [moveSortConfig, setMoveSortConfig] = useState({ key: 'id', direction: 'asc' }); // Cấu hình sắp xếp cho Moves
-  const [abilitySortConfig, setAbilitySortConfig] = useState({ key: 'id', direction: 'asc' }); // Cấu hình sắp xếp cho Abilities
+  const [moveSortConfig, setMoveSortConfig] = useState({ key: 'id', direction: 'asc' });
+  const [abilitySortConfig, setAbilitySortConfig] = useState({ key: 'id', direction: 'asc' });
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  // Simple lists for suggestions
   const [allAbilitiesList, setAllAbilitiesList] = useState([]);
   const [allMovesList, setAllMovesList] = useState([]);
+
+  // ✅ handleHomeNavigate — khai báo DUY NHẤT ở đây
+  const handleHomeNavigate = (tabId) => {
+    setActiveTab(tabId);
+    setShowHome(false);
+  };
 
   // Helper function for batch fetching
   const fetchDetailsBatch = async (urlList, setProgress, resultsKey) => {
@@ -464,13 +468,11 @@ export default function App() {
         results = [...results, ...details.filter(d => d)];
         setProgress(Math.floor(((i + BATCH) / urlList.length) * 100)); 
     }
-    // Gán ID cho Moves/Abilities để sắp xếp theo mặc định
     return results.map((item, index) => ({ ...item, id: index + 1 }));
   };
 
-  // --- FETCH POKEMON DATA (Không đổi) ---
+  // --- FETCH POKEMON DATA ---
   useEffect(() => {
-    // ... (logic fetchAllData cho Pokedex, giữ nguyên)
     const fetchAllData = async () => {
       try {
         const listRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=2000');
@@ -558,7 +560,7 @@ export default function App() {
     fetchAllData();
   }, []);
 
-  // --- FETCH MOVES DATA (Trigger khi vào tab Moves) ---
+  // --- FETCH MOVES DATA ---
   useEffect(() => {
     if (activeTab === 'moves' && !isMovesReady) {
       const fetchMovesData = async () => {
@@ -575,7 +577,7 @@ export default function App() {
     }
   }, [activeTab, isMovesReady]);
 
-  // --- FETCH ABILITIES DATA (Trigger khi vào tab Abilities) ---
+  // --- FETCH ABILITIES DATA ---
   useEffect(() => {
     if (activeTab === 'abilities' && !isAbilitiesReady) {
       const fetchAbilitiesData = async () => {
@@ -592,8 +594,7 @@ export default function App() {
     }
   }, [activeTab, isAbilitiesReady]);
 
-
-  // --- SEARCH SUGGESTIONS LOGIC (Không đổi) ---
+  // --- SEARCH SUGGESTIONS LOGIC ---
   useEffect(() => {
     if (!searchTerm || searchTerm.startsWith('Related to:')) {
       setSearchSuggestions([]);
@@ -643,7 +644,6 @@ export default function App() {
   // --- FILTER & SORT POKEDEX ---
   const processedDexList = useMemo(() => {
     let result = [...fullPokemonData];
-    // ... (Filter logic for Pokedex remains the same)
     if (activeTags.length > 0) {
       result = result.filter(p => {
         return activeTags.every(tag => {
@@ -687,7 +687,6 @@ export default function App() {
     if (!fullMoves.length) return [];
     let result = [...fullMoves];
     
-    // Filtering logic for Moves
     if (infoSearchTerm) {
       const term = infoSearchTerm.toLowerCase();
       result = result.filter(m => 
@@ -701,11 +700,9 @@ export default function App() {
       );
     }
 
-    // Sorting logic for Moves
     if (moveSortConfig.key) {
       result.sort((a, b) => {
         let aValue, bValue;
-        
         switch(moveSortConfig.key) {
           case 'power':
             aValue = a.power ?? -1; 
@@ -723,18 +720,14 @@ export default function App() {
             aValue = a.pp ?? 0;
             bValue = b.pp ?? 0;
             break;
-          default: // name or id
+          default:
             aValue = a[moveSortConfig.key];
             bValue = b[moveSortConfig.key];
             break;
         }
-        
-        // Ensure null/undefined values are treated consistently
         const direction = moveSortConfig.direction === 'asc' ? 1 : -1;
         if (aValue === null || aValue === undefined) return direction * 1;
         if (bValue === null || bValue === undefined) return direction * -1;
-
-
         if (aValue < bValue) return direction * -1;
         if (aValue > bValue) return direction * 1;
         return 0;
@@ -749,7 +742,6 @@ export default function App() {
     if (!fullAbilities.length) return [];
     let result = [...fullAbilities];
     
-    // Filtering logic for Abilities
     if (infoSearchTerm) {
       const term = infoSearchTerm.toLowerCase();
       if (abilitySearchMode === 'name') {
@@ -761,7 +753,6 @@ export default function App() {
       }
     }
     
-    // Sorting logic for Abilities (currently simple name sort)
     if (abilitySortConfig.key === 'name') {
        result.sort((a, b) => a.name.localeCompare(b.name) * (abilitySortConfig.direction === 'asc' ? 1 : -1));
     } else if (abilitySortConfig.key === 'id') {
@@ -800,7 +791,7 @@ export default function App() {
     if (currentConfig.key === key && currentConfig.direction === 'desc') {
       direction = 'asc';
     }
-    setCurrentPage(1); // Reset page on sort
+    setCurrentPage(1);
 
     if (tab === 'moves') {
       setMoveSortConfig({ key, direction });
@@ -819,7 +810,7 @@ export default function App() {
       : <ArrowDown size={12} className="inline text-yellow-400 ml-1" />;
   };
 
-  // Calc Logic (Giữ nguyên)
+  // Calc Logic
   const toggleDefensiveType = (t) => {
      if(defensiveTypes.includes(t)) {
         setDefensiveTypes(defensiveTypes.filter(x=>x!==t));
@@ -897,7 +888,6 @@ export default function App() {
              </div>
              Pokedex
           </h1>
-          {/* Cập nhật các nút Tab chính */}
           <div className="flex bg-red-800 rounded p-0.5">
             <button onClick={() => {setActiveTab('pokedex'); setCurrentPage(1);}} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'pokedex' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Dex</button>
             <button onClick={() => {setActiveTab('moves'); setCurrentPage(1); setInfoSearchTerm('');}} className={`px-3 py-1 rounded text-xs font-bold transition-all ${activeTab === 'moves' ? 'bg-white text-red-700 shadow' : 'text-red-200 hover:text-white'}`}>Moves</button>
@@ -909,10 +899,9 @@ export default function App() {
 
       <div className="flex-1 overflow-hidden relative w-full max-w-7xl mx-auto bg-gray-900 sm:border-x sm:border-gray-800">
         
-        {/* ================= TAB POKEDEX (Giữ nguyên) ================= */}
+        {/* ================= TAB POKEDEX ================= */}
         {activeTab === 'pokedex' && (
           <div className="flex flex-col h-full animate-fadeIn">
-            {/* Search Bar */}
             <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0 relative z-30">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
@@ -930,7 +919,6 @@ export default function App() {
                    </div>
                 )}
                 
-                {/* Horizontal Suggestions */}
                 {searchTerm && searchSuggestions.length > 0 && !searchTerm.startsWith('Related to:') && (
                   <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-700/50">
                     {searchSuggestions.map((item, idx) => (
@@ -952,7 +940,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Active Tags */}
               {activeTags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3 px-3">
                   {activeTags.map((tag, idx) => (
@@ -973,7 +960,6 @@ export default function App() {
               )}
             </div>
 
-            {/* TABLE LIST */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                <div className="flex-1 overflow-auto">
                  <table className="w-full text-left border-collapse">
@@ -1031,7 +1017,6 @@ export default function App() {
                  </table>
                </div>
                
-               {/* Pagination */}
                <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
                   <span className="text-gray-400">
                      Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, processedDexList.length)} of {processedDexList.length}
@@ -1060,10 +1045,9 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB MOVES (Chiêu Thức) ================= */}
+        {/* ================= TAB MOVES ================= */}
         {activeTab === 'moves' && (
           <div className="flex flex-col h-full animate-fadeIn">
-            {/* Loading Indicator for Moves Data */}
             {!isMovesReady && (
                <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center text-red-400">
                   <Loader2 className="animate-spin mb-2" size={32} />
@@ -1071,7 +1055,6 @@ export default function App() {
                </div>
             )}
 
-            {/* Moves Search */}
             <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0">
                <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
@@ -1085,7 +1068,6 @@ export default function App() {
                </div>
             </div>
 
-            {/* MOVES LIST */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                <div className="flex-1 overflow-auto">
                  <table className="w-full text-left border-collapse">
@@ -1121,7 +1103,6 @@ export default function App() {
                  {currentData.length === 0 && isMovesReady && <div className="text-center py-10 text-gray-500">Không tìm thấy kết quả.</div>}
                </div>
 
-               {/* Pagination Moves */}
                <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
                   <span className="text-gray-400">
                      Trang {currentPage} / {totalPages || 1} ({processedMoves.length} chiêu thức)
@@ -1147,18 +1128,16 @@ export default function App() {
           </div>
         )}
         
-        {/* ================= TAB ABILITIES (Đặc Tính) ================= */}
+        {/* ================= TAB ABILITIES ================= */}
         {activeTab === 'abilities' && (
           <div className="flex flex-col h-full animate-fadeIn">
-            {/* Loading Indicator for Abilities Data */}
             {!isAbilitiesReady && (
                <div className="absolute inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center text-yellow-400">
                   <Loader2 className="animate-spin mb-2" size={32} />
-                  <div>Loanding abilities data... {abilitiesLoadProgress}%</div>
+                  <div>Loading abilities data... {abilitiesLoadProgress}%</div>
                </div>
             )}
 
-            {/* Abilities Search & Toggle */}
             <div className="p-3 bg-gray-800 border-b border-gray-700 shrink-0">
                <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
@@ -1169,7 +1148,6 @@ export default function App() {
                     value={infoSearchTerm}
                     onChange={(e) => {setInfoSearchTerm(e.target.value); setCurrentPage(1);}}
                   />
-                  {/* Ability Search Mode Toggle */}
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex bg-gray-700 rounded p-0.5">
                      <button onClick={() => setAbilitySearchMode('name')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'name' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Name</button>
                      <button onClick={() => setAbilitySearchMode('effect')} className={`px-2 py-0.5 rounded text-[10px] font-bold ${abilitySearchMode === 'effect' ? 'bg-gray-500 text-white' : 'text-gray-400'}`}>Effect</button>
@@ -1177,7 +1155,6 @@ export default function App() {
                </div>
             </div>
 
-            {/* ABILITIES LIST */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
                <div className="flex-1 overflow-auto">
                  <table className="w-full text-left border-collapse">
@@ -1203,7 +1180,6 @@ export default function App() {
                  {currentData.length === 0 && isAbilitiesReady && <div className="text-center py-10 text-gray-500">Không tìm thấy kết quả.</div>}
                </div>
 
-               {/* Pagination Abilities */}
                <div className="bg-gray-800 p-2 border-t border-gray-700 flex items-center justify-between text-xs sm:text-sm shrink-0">
                   <span className="text-gray-400">
                      Trang {currentPage} / {totalPages || 1} ({processedAbilities.length} đặc tính)
@@ -1229,11 +1205,9 @@ export default function App() {
           </div>
         )}
 
-
-        {/* ================= TAB CALCULATOR (Giữ nguyên) ================= */}
+        {/* ================= TAB CALCULATOR ================= */}
         {activeTab === 'calc' && (
           <div className="h-full overflow-y-auto p-4 bg-gray-100 text-gray-800 animate-fadeIn">
-            {/* Defensive */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
                 <Shield size={20} className="text-blue-500"/> Defensive Analysis (Multi-Type)
@@ -1263,7 +1237,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            {/* Offensive */}
+
             <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2 text-gray-700">
                 <Sword size={20} className="text-red-500"/> Offensive Coverage
@@ -1294,7 +1268,7 @@ export default function App() {
                  </div>
               )}
             </div>
-             {/* Chart */}
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-x-auto relative mb-4 flex flex-col items-center">
                <h2 className="text-xl font-bold mb-4 text-gray-700 w-full text-left max-w-4xl">Type Chart Reference</h2>
                {hoverInfo && (
@@ -1329,7 +1303,7 @@ export default function App() {
                   ))}
                </div>
             </div>
-            {/* Inverse Chart */}
+
             <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 overflow-x-auto relative flex flex-col items-center">
                <h2 className="text-xl font-bold mb-2 text-white w-full text-left max-w-4xl flex items-center gap-2">
                  <RefreshCw size={24} className="text-purple-400"/> Inverse Battle Chart
@@ -1366,7 +1340,11 @@ export default function App() {
           </div>
         )}
       </div>
+
       {selectedPokemon && <PokemonDetailModal pokemon={selectedPokemon} onClose={() => setSelectedPokemon(null)} />}
+
+      {/* ✅ HomePage — duy nhất, cuối cùng, đúng chỗ */}
+      {showHome && <HomePage onNavigate={handleHomeNavigate} />}
     </div>
   );
 }
